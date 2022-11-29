@@ -26,36 +26,36 @@ __Purpose__
 
 These codes create a graphical user interface (GUI) for the inputs to the Root code. <br>
 They create unique event definitions, direct the Root code to perform various types of analysis and also perform post-processing.
-* Types of analysis
+* <ins>Types of analysis</ins>
   * Peri-events: the time around a specific event
   * Peri-events ([FED3](https://github.com/KravitzLabDevices/FED3)): the time around left nose pokes, right nose pokes and pellet drops
   * Between events: the time between events, such as 2 bottle choice, open field and elevated plus maze tests
   * Whole recording: the entire recording, and annotating any number of events over the top
-* Data types
+* <ins>Data types</ins>
   * Notes
   * Video timestamps
   * Other epoch events
   * [EthoVision XT](https://www.noldus.com/ethovision-xt) events
 * Export images and create raw data with descriptive statistics
 * Create video snippets of events with the neuronal signal traces overlayed
-* Create a high-throughput method for analysing many [TDT tanks](https://www.tdt.com/docs/sdk/offline-data-analysis/tdt-data-storage/) with many settings
+* Create a high-throughput method for analysing many input folders with many settings
 
 __Input data__
 
-TDT export the fiber photometry recording data into "tanks". 
+TDT fiber photometry systems export recording data into "[tanks](https://www.tdt.com/docs/sdk/offline-data-analysis/tdt-data-storage/)". <br>
+A folder like this is the import location to the GUI. <br>
+They also contain data with the structure below.
 
 ![image](https://user-images.githubusercontent.com/101311642/204426040-b153d222-57f3-46f7-884b-de7158193e6d.png)
-
-These folders contain data within the following structure:
-
 <p align="center">
   <img src="https://user-images.githubusercontent.com/101311642/204430041-80fd069f-2f7f-492d-9cc9-cd4592801eda.png" width="600">
 </p><br/>
 
+__Output data__
 
+Here is an example output for the peri-events (FED3) analysis. The corresponding export image is created by the Root code, like the image above.
 
-
-
+![image](https://user-images.githubusercontent.com/101311642/204432138-ed909520-501c-4f1c-a1df-cf6ec4dba271.png)
 
 
 
