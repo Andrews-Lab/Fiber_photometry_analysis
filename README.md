@@ -75,7 +75,7 @@ After every analysis run using the GUI, a settings excel file is exported. These
 
 __Preview of the graphical user interfaces__
 
-![image](https://user-images.githubusercontent.com/101311642/204445964-9abe6430-17f4-41c7-810b-f2dd07cddabd.png)
+![image](https://user-images.githubusercontent.com/101311642/204446219-559732dc-19d0-4000-948a-71f717e5d236.png)
 
 ### Installation
 
@@ -83,7 +83,7 @@ Install [Anaconda Navigator](https://www.anaconda.com/products/distribution). <b
 Open Anaconda Prompt (on Mac open terminal and install X-Code when prompted). <br>
 Download this repository to your home directory by typing in the line below.
 ```
-git clone https://github.com/Andrews-Lab/FED3_time_bins.git
+git clone https://github.com/Andrews-Lab/Fiber_photometry_analysis.git
 ```
 If you receive an error about git, install git using the line below, type "Y" when prompted and then re-run the line above.
 ```
@@ -91,34 +91,34 @@ conda install -c anaconda git
 ```
 Change the directory to the place where the downloaded folder is. <br>
 ```
-cd FED3_time_bins
+cd Fiber_photometry_analysis
 ```
 
 Create a conda environment and install the dependencies.
 ```
-conda env create -n FTB -f Dependencies.yaml
+conda env create -n FPA -f Dependencies.yaml
 ```
 
 ### Usage
 Open Anaconda Prompt (on Mac open terminal). <br>
 Change the directory to the place where the git clone was made.
 ```
-cd FED3_time_bins
+cd Fiber_photometry_analysis
 ```
 
 Activate the conda environment.
 ```
-conda activate FTB
+conda activate FPA
 ```
 
 Run the codes.
 ```
-python FED.py
+python Run_program.py
 ```
 
 ### Guide
 
-View the guide about [how to analyse your FED data](How_to_use_FED_code.pdf).
+Read the [guide to using this fiber photometry GUI]
 
 <br>
 
