@@ -13,7 +13,8 @@ entering the closed arm of an elevated plus maze or reacting to the drop of a pe
   <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="400">
 </p><br/>
 
-TDT, David Root and the Morales lab have created an [analysis code](https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/FibPhoEpocAveraging/#housekeeping) for the raw data from this fiber photometry system.
+TDT, David Root and the Morales lab have created an [analysis code](https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/FibPhoEpocAveraging/#housekeeping) for the raw data from this fiber photometry system. <br>
+I will refer to this as the Root code.
 * This subtracts the isosbestic (ISOS) signal from the calcium imaging (GCaMP) signal and converts this signal to dFF and baseline Z-Score values.
 * It then defines an epoch or a time window around each event (in the example below, 10 secs before and 10 secs after). The mean of these Z-score signals are then averaged across all epochs.
 
@@ -23,9 +24,44 @@ TDT, David Root and the Morales lab have created an [analysis code](https://www.
 
 __Purpose__
 
-The CSV output from the FED3 devices show the timestamps of each event, like nose pokes or pellet retrievals. This repository :
-* Converts this output into a time binned file. It also adds another sheet with the time stamps of all pellet count changes.
-* Creates a master file that combines all the “Left poke count” columns from the raw FED files into one sheet. It does the same thing for the other column types as well. The columns are then sorted by genotype and treatment. <br>
+These codes create a graphical user interface (GUI) for the inputs to the Root code. <br>
+They create unique event definitions, direct the Root code to perform various types of analysis and also perform post-processing.
+* Types of analysis
+  * Peri-events: the time around a specific event
+  * Peri-events ([FED3](https://github.com/KravitzLabDevices/FED3)): the time around left nose pokes, right nose pokes and pellet drops
+  * Between events: the time between events, such as 2 bottle choice, open field and elevated plus maze tests
+  * Whole recording: the entire recording, and annotating any number of events over the top
+* Data types
+  * Notes
+  * Video timestamps
+  * Other epoch events
+  * [EthoVision XT](https://www.noldus.com/ethovision-xt) events
+* Export images and create raw data with descriptive statistics
+* Create video snippets of events with the neuronal signal traces overlayed
+* Create a high-throughput method for analysing many [TDT tanks](https://www.tdt.com/docs/sdk/offline-data-analysis/tdt-data-storage/) with many settings
+
+__Input data__
+
+TDT export the fiber photometry recording data into "tanks". 
+
+![image](https://user-images.githubusercontent.com/101311642/204426040-b153d222-57f3-46f7-884b-de7158193e6d.png)
+
+These folders contain data within the following structure:
+
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/101311642/204430041-80fd069f-2f7f-492d-9cc9-cd4592801eda.png" width="600">
+</p><br/>
+
+
+
+
+
+
+
+
+
+
+
 
 __Preview of the graphical user interfaces__
 
