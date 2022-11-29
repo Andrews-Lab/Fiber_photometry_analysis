@@ -9,7 +9,9 @@ These real-time neuronal activity measurements can also be [coupled with behavio
 For example, this could be a rodent poking a Feeding Experimentation Device ([FED3](https://github.com/KravitzLabDevices/FED3)), 
 entering the closed arm of an elevated plus maze or reacting to the drop of a peanut butter chip.
 
-![image](https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png)
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="400">
+</p><br/>
 
 __Purpose__
 
