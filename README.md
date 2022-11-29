@@ -1,4 +1,4 @@
-# TDT (Tucker-Davis Technologies) Fiber Photometry analysis GUI 🐁
+# TDT (Tucker-Davis Technologies) Fiber Photometry Analysis GUI 🐁
 
 ### Overview
 
