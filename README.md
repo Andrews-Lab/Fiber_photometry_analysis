@@ -75,7 +75,7 @@ After every analysis run using the GUI, a settings excel file is exported. These
 
 __Preview of the graphical user interfaces__
 
-![image](https://user-images.githubusercontent.com/101311642/204444453-bd16ae72-9f5a-458c-bab8-5a7b8dbe30ed.png)
+![image](https://user-images.githubusercontent.com/101311642/204445964-9abe6430-17f4-41c7-810b-f2dd07cddabd.png)
 
 ### Installation
 
