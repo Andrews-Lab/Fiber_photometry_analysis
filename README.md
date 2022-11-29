@@ -10,7 +10,7 @@ For example, this could be a rodent poking a Feeding Experimentation Device ([FE
 entering the closed arm of an elevated plus maze or reacting to the drop of a peanut butter chip.
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="400">
+  <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="320">
 </p><br/>
 
 TDT, David Root and the Morales lab have created an [analysis code](https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/FibPhoEpocAveraging/#housekeeping) for the raw data from this fiber photometry system. <br>
