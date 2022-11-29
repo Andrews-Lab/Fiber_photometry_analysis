@@ -15,6 +15,7 @@ entering the closed arm of an elevated plus maze or reacting to the drop of a pe
 
 TDT, David Root and the Morales lab have created an [analysis code](https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/FibPhoEpocAveraging/#housekeeping) for the raw data from this fiber photometry system.
 * This subtracts the isosbestic (ISOS) signal from the calcium imaging (GCaMP) signal and converts this signal to dFF and baseline Z-Score values.
+* It then defines an epoch or a time window around each event (in the example below, 10 secs before and 10 secs after). The mean of these Z-score signals are then averaged across all epochs.
 
 <p align="center">
   <img src="https://user-images.githubusercontent.com/101311642/204415712-77184a70-3ff2-46d3-a3e3-bcfc9501ebc8.png" width="400">
