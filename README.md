@@ -128,9 +128,11 @@ __Author:__ <br>
 [Harry Dempsey](https://github.com/H-Dempsey) (Andrews lab and Foldi lab) <br>
 
 __Credits:__ <br>
-Zane Andrews, Wang Lok So, Lex Kravitz <br>
+Tucker-Davis Technologies, David Root, Morales lab <br>
+Alexander Reichenbach, Zane Andrews, Laura Milton, Kyna Conn, Claire Foldi <br>
 
 __About the labs:__ <br>
+The [Root lab](https://www.root-lab.org/) utilizes molecular, electrophysiological, imaging, and viral-based approaches to define, observe, and manipulate the specific neurons and pathways that govern seeking rewards, avoiding harm, addiction, and stress. <br>
+The [Morales lab](https://irp.drugabuse.gov/staff-members/marisela-morales/) investigates the molecules, cells and neuronal pathways central to the neurobiology of drug addiction. <br>
 The [Andrews lab](https://www.monash.edu/discovery-institute/andrews-lab) investigates how the brain senses and responds to hunger. <br>
 The [Foldi lab](https://www.monash.edu/discovery-institute/foldi-lab) investigates the biological underpinnings of anorexia nervosa and feeding disorders. <br>
-The [Kravitz lab](https://kravitzlab.com/) investigates the function of basal ganglia circuits and how they change in diseases such as obesity, addiction, and depression. <br>
