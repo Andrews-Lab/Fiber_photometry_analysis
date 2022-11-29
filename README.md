@@ -61,6 +61,11 @@ Here is an example export image for the whole recording analysis, with the notes
 
 ![A_AgrpCre2837-220222-122913_zScore_Whole recording_Setup_A](https://user-images.githubusercontent.com/101311642/204433171-7fc272b2-c214-465e-bd38-b24afde35532.png)
 
+Here is an example video snippet of entering the closed arm of an elevated zero maze, with the Z-Score signal trace below.
+
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/101311642/182095128-09a8b226-88e7-4976-ac26-e17be3b6123a.gif"/ width="60%">
+</p><br/>
 
 __Preview of the graphical user interfaces__
 
