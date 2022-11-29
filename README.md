@@ -113,7 +113,7 @@ conda activate FPA
 
 Run the codes.
 ```
-python Run_program.py
+python fipho.py
 ```
 
 ### Guide
