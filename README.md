@@ -53,14 +53,13 @@ They also contain data with the structure below.
 
 __Output data__
 
-Here is an example output for the peri-events (FED3) analysis. The corresponding export image is created by the Root code, like the image above.
+Here is an example output for the peri-events (FED3) analysis. The corresponding export image is created by the Root code, like the image above. The peri-events and between events analysis types also have the same output format.
 
 ![image](https://user-images.githubusercontent.com/101311642/204432138-ed909520-501c-4f1c-a1df-cf6ec4dba271.png)
 
+Here is an example export image for the whole recording analysis, with the notes and EthoVision events annotated.
 
-
-
-
+![A_AgrpCre2837-220222-122913_zScore_Whole recording_Setup_A](https://user-images.githubusercontent.com/101311642/204433171-7fc272b2-c214-465e-bd38-b24afde35532.png)
 
 
 __Preview of the graphical user interfaces__
