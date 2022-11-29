@@ -118,7 +118,7 @@ python Run_program.py
 
 ### Guide
 
-Read the [guide to using this fiber photometry GUI]
+Read the [guide to using this fiber photometry GUI](How_to_use_Fiber_Photometry_GUI.pdf)
 
 <br>
 
