@@ -40,6 +40,10 @@ They create unique event definitions, direct the Root code to perform various ty
 * Create video snippets of events with the neuronal signal traces overlayed
 * Create a high-throughput method for analysing many input folders with many settings
 
+__Preview of the graphical user interfaces__
+
+![image](https://user-images.githubusercontent.com/101311642/204442419-38f3efa0-b148-4a5d-b348-0cd982ae3c89.png)
+
 __Input data__
 
 TDT fiber photometry systems export recording data into "[tanks](https://www.tdt.com/docs/sdk/offline-data-analysis/tdt-data-storage/)". <br>
@@ -64,7 +68,7 @@ Here is an example export image for the whole recording analysis, with the notes
 Here is an example video snippet of the air puff event with the Z-Score signal trace below.
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/101311642/182095128-09a8b226-88e7-4976-ac26-e17be3b6123a.gif"/ width="50%">
+  <img src="https://user-images.githubusercontent.com/101311642/182095128-09a8b226-88e7-4976-ac26-e17be3b6123a.gif"/ width="60%">
 </p><br/>
 
 __High throughput analysis of TDT tanks__
@@ -72,10 +76,6 @@ __High throughput analysis of TDT tanks__
 After every analysis run using the GUI, a settings excel file is exported. These settings can be edited and also duplicated. When this file is re-imported, it can run the analysis for multiple tanks at once. If you set "import subfolders" to TRUE, you can also apply the same analysis to all tanks within one master folder.
 
 ![image](https://user-images.githubusercontent.com/101311642/204436281-95b738aa-94b2-4bd8-b08b-31de052ccda6.png)
-
-__Preview of the graphical user interfaces__
-
-![image](https://user-images.githubusercontent.com/101311642/195033127-046fec78-24ae-4ab7-b059-f763a19e93b4.png)
 
 ### Installation
 
