@@ -13,6 +13,13 @@ entering the closed arm of an elevated plus maze or reacting to the drop of a pe
   <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="400">
 </p><br/>
 
+TDT, David Root and the Morales lab have created an [analysis code](https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/FibPhoEpocAveraging/#housekeeping) for the raw data from this fiber photometry system.
+* This subtracts the isosbestic (ISOS) signal from the calcium imaging (GCaMP) signal and converts this signal to dFF and baseline Z-Score values.
+
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/101311642/204415712-77184a70-3ff2-46d3-a3e3-bcfc9501ebc8.png" width="400">
+</p><br/>
+
 __Purpose__
 
 The CSV output from the FED3 devices show the timestamps of each event, like nose pokes or pellet retrievals. This repository :
