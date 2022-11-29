@@ -10,7 +10,7 @@ For example, this could be a rodent poking a Feeding Experimentation Device ([FE
 entering the closed arm of an elevated plus maze or reacting to the drop of a peanut butter chip.
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="380">
+  <img src="https://user-images.githubusercontent.com/101311642/204413263-5d4cb7f5-b4be-4d7d-a80b-29ca202ff596.png" width="400">
 </p><br/>
 
 TDT, David Root and the Morales lab have created an [analysis code](https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/FibPhoEpocAveraging/#housekeeping) for the raw data from this fiber photometry system. <br>
@@ -19,7 +19,7 @@ I will refer to this as the Root code.
 * It then defines an epoch or a time window around each event (in the example below, 10 secs before and 10 secs after). The mean of these Z-score signals are then averaged across all epochs.
 
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/101311642/204415712-77184a70-3ff2-46d3-a3e3-bcfc9501ebc8.png" width="380">
+  <img src="https://user-images.githubusercontent.com/101311642/204415712-77184a70-3ff2-46d3-a3e3-bcfc9501ebc8.png" width="400">
 </p><br/>
 
 __Purpose__
