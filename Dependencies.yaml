@@ -8,10 +8,10 @@ dependencies:
     - PySimpleGUI
     - numpy
     - pandas
-    - cv2
+    - opencv-python
     - matplotlib
     - openpyxl
     - tqdm
     - tdt
-    - sklearn
+    - scikit-learn
     - scipy

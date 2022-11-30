@@ -7,7 +7,8 @@ from copy import deepcopy
 import cv2 as cv
 import matplotlib
 matplotlib.use('agg')
-plt = matplotlib.pyplot
+# plt = matplotlib.pyplot
+import matplotlib.pyplot as plt
 from tqdm import tqdm
     
 def create_values_col(df):
