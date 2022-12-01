@@ -129,7 +129,7 @@ __Author:__ <br>
 
 __Credits:__ <br>
 Tucker-Davis Technologies, David Root, Morales lab <br>
-Alexander Reichenbach, Zane Andrews, Myles Billard, Laura Milton, Kyna Conn, Claire Foldi <br>
+Alexander Reichenbach, Zane Andrews, Myles Billard <br>
 
 __About the labs:__ <br>
 The [Root lab](https://www.root-lab.org/) utilizes molecular, electrophysiological, imaging, and viral-based approaches to define, observe, and manipulate the specific neurons and pathways that govern seeking rewards, avoiding harm, addiction, and stress. <br>
