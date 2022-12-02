@@ -193,6 +193,26 @@ def create_export_data_between_events(inputs, outputs):
         #     else:
         #         list_directions += ['Flat']
         # extra_rows['Slope direction where [0.1,-0.1] is flat'] = ['',''] + list_directions
+        
+        # Find the time to baseline after the event.
+        if stat == 'zScore':
+            BL_thresh = 0.1
+            post_event_ind = [i for i in range(len(outputs['Timestamps']))
+                              if outputs['Timestamps'][i] >= 0]
+            list_baseline_times = []
+            for col in result_arrays[stat]:
+                found_baseline = False
+                for i in post_event_ind:
+                    if (-BL_thresh <= col[i] <= BL_thresh):
+                        list_baseline_times += [outputs['Timestamps'][i]]
+                        found_baseline = True
+                        break
+                # If the signal does not return to baseline after the event, 
+                # list the last possible time point.
+                if found_baseline == False:
+                    list_baseline_times += [outputs['Timestamps'][-1]]
+            extra_rows[f'Time to baseline (between -{BL_thresh} and {BL_thresh}) after event'] = (
+                ['',''] + list(list_baseline_times))
 
         list_max_Zscores = [max(col) for col in result_arrays[stat]]
         extra_rows['Max values'] = ['',''] + list_max_Zscores
