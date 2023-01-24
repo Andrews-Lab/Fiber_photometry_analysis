@@ -136,14 +136,6 @@ def define_unique_TDT_event(inputs):
 
 def create_export_data_peri_events(inputs, outputs):
     
-    # Check whether a t-range extended beyond the recording and was therefore excluded.
-    # If so, exclude the corresponding notes.
-    event_onsets = inputs['Tank'].epocs['Analyse_this_event'].onset
-    if len(event_onsets) != len(outputs['zScore']):
-        print('\nPLEASE NOTE: the last '+str(len(event_onsets)-len(outputs['zScore'])) + ' events '+
-              'have been excluded, because their window durations go past the end of '+
-              'the recording.\n')
-    
     # Create the pandas dataframes to export as CSV files.
     # Only include the keys 'zScore', 'dFF', 'ISOS' and 'GCaMP'.
     remove_data = ['Timestamps', 'Figure']
@@ -161,8 +153,6 @@ def create_export_data_peri_events(inputs, outputs):
         header = {}
         header['Names'] = [str(i) for i in range(1,len(result_arrays[stat])+1)]
         header['Times'] = list(inputs['Tank'].epocs['Analyse_this_event'].onset)
-        # Make sure the analysed data columns and event names are the same length.
-        header['Times'] = header['Times'][:len(header['Names'])]
         all_headers = list(zip(*[header[key] for key in header.keys()]))
         all_headers = pd.MultiIndex.from_tuples(all_headers)
         
@@ -181,8 +171,6 @@ def create_export_data_peri_events(inputs, outputs):
         if 'notes' in inputs['Tank'].epocs['Analyse_this_event'].keys():
     
             list_notes = list(inputs['Tank'].epocs['Analyse_this_event'].notes)
-            # Make sure the analysed data columns and event names are the same length.
-            list_notes = list_notes[:len(header['Names'])]
             list_differences = ['']
             for i in range(len(list_notes)-1):
                 if list_notes[i] != list_notes[i+1]:

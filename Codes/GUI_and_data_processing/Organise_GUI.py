@@ -25,6 +25,7 @@ def run_TDT_GUI(inputs):
             inputs = choose_video_snippet_options(inputs)
         
         inputs, outputs = FiPhoEpocAveraging(inputs)
+        inputs = check_for_excluded_data(inputs, outputs)
         outputs = create_export_data_peri_events(inputs, outputs)
         export_analysed_data_peri_events(inputs, outputs)
         
@@ -58,6 +59,7 @@ def run_TDT_GUI(inputs):
 
         inputs = create_unique_TDT_event_FED3(inputs)
         inputs, outputs = FiPhoEpocAveraging(inputs)
+        inputs = check_for_excluded_data(inputs, outputs)
         outputs = create_export_data_FED3(inputs, outputs)
         export_analysed_data_FED3(inputs, outputs)
             
@@ -97,6 +99,7 @@ def analyse_settings_file(inputs):
             inputs = define_unique_TDT_event(inputs)
             
             inputs, outputs = FiPhoEpocAveraging(inputs)
+            inputs = check_for_excluded_data(inputs, outputs)
             outputs = create_export_data_peri_events(inputs, outputs)
             export_analysed_data_peri_events(inputs, outputs)
             
@@ -121,6 +124,7 @@ def analyse_settings_file(inputs):
             inputs = find_options_FED3(inputs)
             inputs = create_unique_TDT_event_FED3(inputs)
             inputs, outputs = FiPhoEpocAveraging(inputs)
+            inputs = check_for_excluded_data(inputs, outputs)
             outputs = create_export_data_FED3(inputs, outputs)
             export_analysed_data_FED3(inputs, outputs)
                 

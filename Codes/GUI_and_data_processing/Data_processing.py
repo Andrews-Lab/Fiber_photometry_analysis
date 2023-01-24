@@ -151,6 +151,48 @@ def analyse_Ethovision_data(inputs, event_name):
             
     return(df_results)
 
+def check_for_excluded_data(inputs, outputs):
+    
+    # If the t-range for some events extend beyond the length of the recording,
+    # then those events will be excluded after running epoc_filter...
+    
+    # Check whether a t-range extended beyond the recording.
+    event_onsets = inputs['Tank'].epocs['Analyse_this_event'].onset
+    if len(event_onsets) != len(outputs['zScore']):
+        print('\nPLEASE NOTE: '+str(len(event_onsets)-len(outputs['zScore'])) + ' events '+
+              'have been excluded, because their window durations go outside '+
+              'the recording.\n')
+
+        # Create a list of epoch intervals for each event onset.
+        event_intervals = []
+        for onset in event_onsets:
+            left_bound  = onset + inputs['t-range'][0]
+            right_bound = onset + (inputs['t-range'][1] + inputs['t-range'][0])
+            event_intervals += [(left_bound, right_bound)]
+            
+        # Create an interval for the entire experiment duration.
+        start_time   = inputs['Tank'].streams[inputs['GCaMP']].start_time
+        exp_length   = inputs['Tank'].info.duration.total_seconds()
+        exp_interval = (start_time, start_time + exp_length)
+        
+        # Find which event indices are excluded for extending beyond the recording
+        # length.
+        nonexcluded_events = [i for i in range(len(event_intervals))
+                              if event_intervals[i][0] >= exp_interval[0] and
+                                 event_intervals[i][1] <= exp_interval[1]]
+        
+        # Change the inputs['Tank'].epocs['Analyse_this_event'] info to exclude 
+        # these event indices.
+        possible_data_types = ['onset', 'offset', 'data', 'notes', 'rewarded']
+        event_keys = set(inputs['Tank'].epocs['Analyse_this_event'].keys())
+        data_types = event_keys.intersection(possible_data_types)
+        for data_type in data_types:
+            original_data = inputs['Tank'].epocs['Analyse_this_event'][data_type]
+            inputs['Tank'].epocs['Analyse_this_event'][data_type] = (
+                original_data[nonexcluded_events])
+        
+    return(inputs)
+
 def create_annotated_video(inputs, outputs):
     
     # Create a variable for the signal.
