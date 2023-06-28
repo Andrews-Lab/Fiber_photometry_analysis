@@ -46,11 +46,13 @@ def find_event_names_between_events(inputs):
     if len(events[event1]) == 1:
         inputs['Name'] += [events[event1][0]]
     else:
-        inputs['Name'] += [inputs['Options list'][0]]
+        # inputs['Name'] += [inputs['Options list'][0]]
+        inputs['Name'] += ['Event1']
     if len(events[event2]) == 1:
         inputs['Name'] += [events[event2][0]]
     else:
-        inputs['Name'] += [inputs['Options list'][0]] 
+        # inputs['Name'] += [inputs['Options list'][0]] 
+        inputs['Name'] += ['Event2']
         
     return(inputs)
 
@@ -108,7 +110,11 @@ def create_unique_TDT_event_between_events(inputs):
                   "offset":   offsets,
                   "data":     data,
                   "notes":    notes}
-    inputs['Tank'].epocs[SCORE_EVENT] = StructType(SCORE_DICT)
+    # inputs['Tank'].epocs[SCORE_EVENT] = StructType(SCORE_DICT)
+    
+    # Remove the other epocs, to avoid issues with filtering in 
+    # "FibPhoEpocAveraging_between_events.py".
+    inputs['Tank'].epocs = StructType({'Analyse_this_event':StructType(SCORE_DICT)})
     
     return(inputs)
 
@@ -197,12 +203,10 @@ def create_export_data_between_events(inputs, outputs):
         # Find the time to baseline after the event.
         if stat == 'zScore':
             BL_thresh = 0.1
-            post_event_ind = [i for i in range(len(outputs['Timestamps']))
-                              if outputs['Timestamps'][i] >= 0]
             list_baseline_times = []
             for col in result_arrays[stat]:
                 found_baseline = False
-                for i in post_event_ind:
+                for i in range(len(col)):
                     if (-BL_thresh <= col[i] <= BL_thresh):
                         list_baseline_times += [outputs['Timestamps'][i]]
                         found_baseline = True
