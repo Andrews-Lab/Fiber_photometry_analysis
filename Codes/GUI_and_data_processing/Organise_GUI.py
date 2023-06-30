@@ -11,8 +11,9 @@ from tqdm import tqdm
 def run_TDT_GUI(inputs):
     
     inputs = choose_basic_TDT_options(inputs)
-    if inputs['Setup'] == 'Custom':
-        inputs = choose_ISOS_and_GCaMP_signals(inputs)
+    inputs = import_tank(inputs)
+    # if inputs['Setup'] == 'Custom':
+    inputs = choose_ISOS_and_GCaMP_signals(inputs)
     
     if inputs['Analysis'] == 'Peri-events':
         inputs = choose_type_TDT_event(inputs)
@@ -93,6 +94,8 @@ def analyse_settings_file(inputs):
     
     # Run the correct code, based on the information in the settings excel file.
     for inputs in tqdm(list_inputs, ncols=70):
+        
+        inputs = import_tank(inputs)
     
         if inputs['Analysis'] == 'Peri-events':
             inputs = find_possible_TDT_event_names(inputs)

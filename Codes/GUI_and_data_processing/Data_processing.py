@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import sys
 import os
-from tdt import read_block, StructType
 from copy import deepcopy
 import cv2 as cv
 import matplotlib
@@ -10,6 +9,7 @@ matplotlib.use('agg')
 # plt = matplotlib.pyplot
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from tdt import read_block
     
 def create_values_col(df):
     
@@ -72,7 +72,7 @@ def import_settings_excel_file(inputs):
                     value = np.inf
                 # Add this option, value pair to the dictionary.
                 dict1[option] = value
-        if dict1['Setup'] != 'Custom':
+        if dict1['Setup'] != 'Custom' and ('ISOS' not in dict1.keys() or 'GCaMP' not in dict1.keys()):
             # Work out the ISOS and GCaMP values for 'Setup A' and 'Setup B'.
             # These are needed for the FibPhoEpocAveraging code.
             dict1['ISOS']  = setups('ISOS',  dict1['Setup'])
@@ -105,6 +105,15 @@ def import_settings_excel_file(inputs):
     print('Start analysing each tank within the settings excel file.')
             
     return(list_tanks_full)
+
+def import_tank(inputs):
+    
+    # Import the tank, so the stream names can be checked.
+    print('\nPlease wait while the TDT tank is importing...')
+    inputs['Tank'] = read_block(inputs['Import location'])
+    print('')
+    
+    return(inputs)
 
 def analyse_Ethovision_data(inputs, event_name):
     
@@ -344,10 +353,10 @@ def export_settings_excel_file(inputs):
         inputs_exclude += ['t-range', 'Baseline period', 'Create snippets']
     if inputs['Analysis'] == 'Between events':
         inputs_exclude += ['Create snippets']
-    if inputs['Setup'] == 'Custom':
-        inputs_exclude += ['Setup']
-    if inputs['Setup'] in ['Setup A', 'Setup B']:
-        inputs_exclude += ['ISOS', 'GCaMP']
+    # if inputs['Setup'] == 'Custom':
+    #     inputs_exclude += ['Setup']
+    # if inputs['Setup'] in ['Setup A', 'Setup B']:
+    #     inputs_exclude += ['ISOS', 'GCaMP']
     
     # Remove these inputs.
     export = deepcopy(inputs)

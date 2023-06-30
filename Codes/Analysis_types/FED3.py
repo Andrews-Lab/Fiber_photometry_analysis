@@ -1,20 +1,11 @@
 import numpy as np
-from tdt import read_block, StructType
+from tdt import StructType
 import pandas as pd
 import sys
 from copy import deepcopy
 import os
-from tqdm import tqdm
 
 def find_options_FED3(inputs):
-    
-    print('\nPlease wait while the TDT tank is importing...')
-    # original_stdout = sys.stdout
-    # sys.stdout = open(os.devnull, 'w')
-    inputs['Tank'] = read_block(inputs['Import location'])
-    # sys.stdout.close()
-    # sys.stdout = original_stdout
-    print('')
 
     # Create a list of system variables to exclude from possible TTLMs.
     TTLM_exclude = ['PC0_','PC1_','PC2_','PC3_','PC0/','PC1/','PC2/','PC3/',

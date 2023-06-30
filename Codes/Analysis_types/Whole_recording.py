@@ -1,6 +1,6 @@
 from GUI_and_data_processing.Data_processing import analyse_Ethovision_data
 from Root_Morales_lab_codes.FibPhoEpocAveraging import FiPhoEpocAveraging
-from tdt import StructType, read_block
+from tdt import StructType
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,9 +8,6 @@ import os
 
 def find_lists_of_events(inputs):
     
-    print('\nPlease wait while the TDT tank is importing...')
-    inputs['Tank'] = read_block(inputs['Import location'])
-    print('')
     inputs['Options'] = {}
 
     # OTHER

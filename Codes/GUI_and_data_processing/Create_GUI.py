@@ -102,9 +102,9 @@ def choose_basic_TDT_options(inputs):
             inputs['Import location'] = values["Import"]
             inputs['Export location'] = values["Export"]
             inputs['Setup']           = values["Setup"]
-            if values['Setup'] != 'Custom':
-                inputs['ISOS']            = setups('ISOS',  inputs['Setup'])
-                inputs['GCaMP']           = setups('GCaMP', inputs['Setup'])
+            # if values['Setup'] != 'Custom':
+            #     inputs['ISOS']            = setups('ISOS',  inputs['Setup'])
+            #     inputs['GCaMP']           = setups('GCaMP', inputs['Setup'])
             inputs['Camera']          = camera(values['Camera'])
             inputs['Analysis']        = values["Analysis"]
             inputs["N"]               = 100
@@ -119,20 +119,49 @@ def choose_basic_TDT_options(inputs):
     return(inputs)
 
 def choose_ISOS_and_GCaMP_signals(inputs):
+    
+    # List all the possible stream names for setup A and setup B and check which
+    # ones exist in the tank.
+    list_streams = [stream for stream in inputs['Tank'].streams.keys() if stream[0]=='_']
+    dict1 = {'ISOS':  {'Setup A':list({'_405A'}.intersection(list_streams)),
+                       'Setup B':list({'_415A','_405C'}.intersection(list_streams)),         
+                       'Custom':list_streams},
+             'GCaMP': {'Setup A':list({'_465A','_560B'}.intersection(list_streams)),
+                       'Setup B':list({'_475A','_465C','_560D'}.intersection(list_streams)), 
+                       'Custom':list_streams}}
+
+    # If there are no options left to choose, create an error message.
+    default = {}
+    if len(dict1['ISOS'][inputs['Setup']]) == 0:
+        if inputs['Setup'] in ['Setup A', 'Setup B']:
+            print('There are no stream names in '+inputs['Setup']+' for the control data.')
+            print('Please select "Custom" in the setup section.')
+        else:
+            print('There are no stream names in this tank.')
+        sys.exit()
+    else:
+        default["ISOS"]  = dict1['ISOS'][inputs['Setup']][0]
+        
+    if len(dict1['GCaMP'][inputs['Setup']]) == 0:
+        if inputs['Setup'] in ['Setup A', 'Setup B']:
+            print('There are no stream names in '+inputs['Setup']+' for the signal data.')
+            print('Please select "Custom" in the setup section.')
+        else:
+            print('There are no stream names in this tank.')
+        sys.exit()
+    else:
+        default["GCaMP"]  = dict1['GCaMP'][inputs['Setup']][0]
 
     # Choose the type of TTL.
-    default = {}
-    default["ISOS"]  = '_405A'
-    default["GCaMP"] = '_465A'
     sg.theme("DarkTeal2")
     layout  = []
-    layout += [[sg.T("")],[sg.Text("Choose the stream names in the TDT tanks.")], 
+    layout += [[sg.T("")],[sg.Text("Check the stream names in the TDT tanks.")], 
                [sg.T("")],[sg.Text("ISOS signal", size=(11,1)),
-                sg.Input(key="ISOS",enable_events=True,default_text=default["ISOS"],
-                         size=(20,1))],
+                sg.Combo(dict1['ISOS'][inputs['Setup']],key="ISOS",enable_events=True,
+                         default_value=default["ISOS"], size=(10,1))],
                [sg.T("")],[sg.Text("GCaMP signal", size=(11,1)),
-                sg.Input(key="GCaMP",enable_events=True,default_text=default["GCaMP"],
-                         size=(20,1))]]
+                sg.Combo(dict1['GCaMP'][inputs['Setup']],key="GCaMP",enable_events=True,
+                         default_value=default["GCaMP"], size=(10,1))]]
     layout += [[sg.T("")], [sg.Button("Submit")]]
     window  = sg.Window('Photometry Analysis', layout)
     while True:

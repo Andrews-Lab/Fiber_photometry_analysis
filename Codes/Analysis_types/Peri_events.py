@@ -1,5 +1,5 @@
 from GUI_and_data_processing.Data_processing import analyse_Ethovision_data
-from tdt import read_block, StructType
+from tdt import StructType
 from copy import deepcopy
 import sys
 import numpy as np
@@ -7,10 +7,6 @@ import os
 import pandas as pd
 
 def find_possible_TDT_event_names(inputs):
-    
-    print('\nPlease wait while the TDT tank is importing...')
-    inputs['Tank'] = read_block(inputs['Import location'])
-    print('')
     
     if inputs['Type'] == 'Other':
         # Create a list of system variables to exclude from possible TTLMs.
