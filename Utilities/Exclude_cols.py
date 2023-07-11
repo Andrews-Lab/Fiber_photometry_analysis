@@ -78,4 +78,16 @@ for path in import_paths:
     export_name = os.path.basename(path)[:-4] + "_cleaned.csv"
     export_path = os.path.join(export_location, export_name)
     df.to_csv(export_path, index=False, header=False)
+    
+# Export the settings for analysis.
+text_export_name = os.path.basename(import_location) + ' cleaning settings.txt'
+text_export_path = os.path.join(export_location, text_export_name)
+list_files = []
+with open(text_export_path, 'w') as file:
+    file.write(f'Import location was {import_location}\n')
+    file.write(f'Export location was {export_location}\n')
+    file.write(f'Minimum threshold was {diff_thresh}\n\n')
+    file.write('Cleaned files were:\n')
+    for path in import_paths:
+        file.write(os.path.basename(path)+'\n')
         
