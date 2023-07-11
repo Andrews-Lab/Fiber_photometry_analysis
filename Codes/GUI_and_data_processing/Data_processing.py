@@ -10,7 +10,15 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from tdt import read_block
-    
+
+def check_package_versions():
+
+    if matplotlib.__version__ < '3.5.0':
+        print("Your matplotlib version is less than 3.5.0,\n"+
+              "which means you might run into some errors.\n"+
+              "Please update this by running:\n"+
+              "pip install --upgrade matplotlib")  
+
 def create_values_col(df):
     
     # Convert value entries to lists, so they can be combined together.
@@ -77,6 +85,11 @@ def import_settings_excel_file(inputs):
             # These are needed for the FibPhoEpocAveraging code.
             dict1['ISOS']  = setups('ISOS',  dict1['Setup'])
             dict1['GCaMP'] = setups('GCaMP', dict1['Setup'])
+        if dict1['Analysis'] == 'Between events' and 'Baseline type' not in dict1.keys():
+            dict1['Baseline type'] = 'Whole recording'
+            dict1['Baseline period'] = [0,10] # This is arbitrary as whole recording is the default.
+        if 'Baseline type' not in dict1.keys():
+            dict1['Baseline type'] = 'Specific'
         # Enter the sampling rate.
         dict1["N"] = 100
         dict_list += [dict1]

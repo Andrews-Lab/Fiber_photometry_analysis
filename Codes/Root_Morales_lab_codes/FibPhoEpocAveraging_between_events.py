@@ -53,9 +53,13 @@ def FiPhoEpocAveraging_between_events(inputs):
     # have to change everything downstream
     ISOS = inputs['ISOS'] # 405nm channel. Formally STREAM_STORE1 in maltab example
     GCaMP = inputs['GCaMP'] # 465nm channel. Formally STREAM_STORE2 in maltab example
-    TRANGE = [0] # window size [start time relative to epoc onset, window duration]
-    BASELINE_PER = [] # baseline period within our window
+    BASELINE_PER = inputs['Baseline period'] # baseline period within our window
     ARTIFACT = inputs['Artifact RL'] # optionally set an artifact rejection level
+    
+    if inputs['Baseline type'] == 'Whole recording':
+        TRANGE = [0] # window size [start time relative to epoc onset, window duration]
+    elif inputs['Baseline type'] == 'Specific':
+        TRANGE = [inputs['Baseline period'][0]]
     
     #call read block - new variable 'data' is the full data structure
     data_full = inputs['Tank']
@@ -64,7 +68,6 @@ def FiPhoEpocAveraging_between_events(inputs):
     # Using the 't' parameter extracts data only from the time range around our epoc event.<br>
     # Use the 'values' parameter to specify allowed values of the REF_EPOC to extract.<br>
     # For stream events, the chunks of data are stored in cell arrays structured as `data.streams[GCaMP].filtered`
-    
     data = tdt.epoc_filter(data_full, REF_EPOC, t=TRANGE, values=SHOCK_CODE)
     
     # TRANGE is defined as [time before epoch onset, window duration starting from this time].
@@ -233,11 +236,22 @@ def FiPhoEpocAveraging_between_events(inputs):
     fit_line = np.multiply(bls[0], x) + bls[1]
     Y_dF_all_full = y-fit_line
     
-    zall = []
-    for dF in Y_dF_all: 
-       zb = np.mean(Y_dF_all_full)
-       zsd = np.std(Y_dF_all_full)
-       zall.append((dF - zb)/zsd)
+    if inputs['Baseline type'] == 'Specific':
+        # Getting the z-score and standard error
+        zall = []
+        for dF in Y_dF_all: 
+           ind = np.where((np.array(ts2)<BASELINE_PER[1]) & (np.array(ts2)>BASELINE_PER[0]))
+           zb = np.mean(dF[ind])
+           zsd = np.std(dF[ind])
+           zall.append((dF - zb)/zsd)
+           
+    elif inputs['Baseline type'] == 'Whole recording':
+        # Getting the z-score and standard error
+        zall = []
+        for dF in Y_dF_all: 
+           zb = np.mean(Y_dF_all_full)
+           zsd = np.std(Y_dF_all_full)
+           zall.append((dF - zb)/zsd)
        
     zerror = std2(zall, axis=0)/np.sqrt(np.size(zall, axis=0))
     

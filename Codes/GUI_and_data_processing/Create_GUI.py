@@ -389,15 +389,16 @@ def choose_name_TDT_event(inputs):
 def choose_peri_event_options(inputs):
     
     default = {}
-    default["t-range"]           = [-20,80]
-    default["Baseline period"]  = [-20,-5]
-    default["Artifact RL"]      = ''
-    default["Image"]            = 'True'
-    default["Video"]            = 'False'
-    default["zScore"]           = 'True'
-    default["dFF"]              = 'False'
-    default["ISOS"]             = 'False'
-    default["GCaMP"]            = 'False'
+    default["t-range"]         = [-20,80]
+    default["Baseline type"]   = 'Specific'
+    default["Baseline period"] = [-20,-5]
+    default["Artifact RL"]     = ''
+    default["Image"]           = 'True'
+    default["Video"]           = 'False'
+    default["zScore"]          = 'True'
+    default["dFF"]             = 'False'
+    default["ISOS"]            = 'False'
+    default["GCaMP"]           = 'False'
     sg.theme("DarkTeal2")
     layout = [[sg.T("")],
         [sg.Text("Choose the t-range (time before event, duration of window) (secs)"), 
@@ -405,10 +406,12 @@ def choose_peri_event_options(inputs):
                   default_text=default["t-range"][0],size=(10,1)), 
          sg.Input(key="TRANGE2",enable_events=True,
                   default_text=default["t-range"][1],size=(10,1))],[sg.T("")],
-        [sg.Text("Choose the baseline period within the window"), 
-         sg.Input(key="BASELINE1",enable_events=True,
+        [sg.Text("Choose the baseline period"), 
+         sg.Combo(['Specific','Whole recording'],key="Baseline type",enable_events=True,
+                  default_value=default["Baseline type"]),
+         sg.Input(key="BASELINE1",enable_events=True,visible=True,
                   default_text=default["Baseline period"][0],size=(10,1)),
-         sg.Input(key="BASELINE2",enable_events=True,
+         sg.Input(key="BASELINE2",enable_events=True,visible=True,
                   default_text=default["Baseline period"][1],size=(10,1))],[sg.T("")],
         [sg.Text("Choose the artifact rejection level (optional)"), 
          sg.Input(key="Artifact",enable_events=True,
@@ -438,18 +441,25 @@ def choose_peri_event_options(inputs):
         if event == sg.WIN_CLOSED or event=="Exit":
             window.close()
             sys.exit()
-        elif event == "Submit":
+        if values["Baseline type"] == "Specific":
+            window.Element("BASELINE1").Update(visible=True)
+            window.Element("BASELINE2").Update(visible=True)
+        if values["Baseline type"] == "Whole recording":
+            window.Element("BASELINE1").Update(visible=False)
+            window.Element("BASELINE2").Update(visible=False)
+        if event == "Submit":
             inputs['t-range']         = [float(values['TRANGE1']),   
                                          float(values['TRANGE2'])]
+            inputs['Baseline type']   = values['Baseline type']
             inputs['Baseline period'] = [float(values['BASELINE1']), 
                                          float(values['BASELINE2'])]
             inputs['Artifact RL']     = recognise_artifact(values['Artifact'])
             inputs['Image']           = recognise_bool(values["Image"])
             inputs['Create snippets'] = recognise_bool(values['Video'])
-            inputs['Export ISOS']   = recognise_bool(values['ISOS'])
-            inputs['Export GCaMP']  = recognise_bool(values['GCaMP'])
-            inputs['Export dFF']    = recognise_bool(values['dFF'])
-            inputs['Export zScore'] = recognise_bool(values['zScore'])
+            inputs['Export ISOS']     = recognise_bool(values['ISOS'])
+            inputs['Export GCaMP']    = recognise_bool(values['GCaMP'])
+            inputs['Export dFF']      = recognise_bool(values['dFF'])
+            inputs['Export zScore']   = recognise_bool(values['zScore'])
             window.close()
             break
         
@@ -762,6 +772,8 @@ def choose_name_TDT_event_between_events(inputs):
 def choose_between_events_options(inputs):
     
     default = {}
+    default['Baseline type']    = 'Whole recording'
+    default['Baseline period']  = [-10,-5]
     default["Artifact RL"]      = ''
     default["Image"]            = 'True'
     default["Video"]            = 'False'
@@ -771,6 +783,13 @@ def choose_between_events_options(inputs):
     default["GCaMP"]            = 'False'
     sg.theme("DarkTeal2")
     layout = [[sg.T("")],
+        [sg.Text("Choose the baseline period"), 
+         sg.Combo(['Specific','Whole recording'],key="Baseline type",enable_events=True,
+                  default_value=default["Baseline type"]),
+         sg.Input(key="BASELINE1",enable_events=True,visible=False,
+                  default_text=default["Baseline period"][0],size=(10,1)),
+         sg.Input(key="BASELINE2",enable_events=True,visible=False,
+                  default_text=default["Baseline period"][1],size=(10,1))],[sg.T("")],
         [sg.Text("Choose the artifact rejection level (optional)"), 
          sg.Input(key="Artifact",enable_events=True,
                   default_text=default["Artifact RL"],size=(20,1))],[sg.T("")],
@@ -799,14 +818,22 @@ def choose_between_events_options(inputs):
         if event == sg.WIN_CLOSED or event=="Exit":
             window.close()
             sys.exit()
-        elif event == "Submit":
+        if values["Baseline type"] == "Specific":
+            window.Element("BASELINE1").Update(visible=True)
+            window.Element("BASELINE2").Update(visible=True)
+        if values["Baseline type"] == "Whole recording":
+            window.Element("BASELINE1").Update(visible=False)
+            window.Element("BASELINE2").Update(visible=False)
+        if event == "Submit":
+            inputs['Baseline type']   = values['Baseline type']
+            inputs['Baseline period'] = [float(values['BASELINE1']), float(values['BASELINE2'])]
             inputs['Artifact RL']     = recognise_artifact(values['Artifact'])
             inputs['Image']           = recognise_bool(values["Image"])
             inputs['Create snippets'] = recognise_bool(values['Video'])
-            inputs['Export ISOS']   = recognise_bool(values['ISOS'])
-            inputs['Export GCaMP']  = recognise_bool(values['GCaMP'])
-            inputs['Export dFF']    = recognise_bool(values['dFF'])
-            inputs['Export zScore'] = recognise_bool(values['zScore'])
+            inputs['Export ISOS']     = recognise_bool(values['ISOS'])
+            inputs['Export GCaMP']    = recognise_bool(values['GCaMP'])
+            inputs['Export dFF']      = recognise_bool(values['dFF'])
+            inputs['Export zScore']   = recognise_bool(values['zScore'])
             window.close()
             break
         

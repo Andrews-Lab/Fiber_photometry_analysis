@@ -4,8 +4,10 @@ from GUI_and_data_processing.Create_GUI import (
 from GUI_and_data_processing.Organise_GUI import (
     run_TDT_GUI, analyse_settings_file)
 
-inputs = {}
+from GUI_and_data_processing.Data_processing import check_package_versions
 
+check_package_versions()
+inputs = {}
 inputs = choose_settings_file_or_not(inputs)
 
 if inputs["Settings"] == True:

@@ -58,14 +58,14 @@ def FiPhoEpocAveraging(inputs):
     ARTIFACT = inputs['Artifact RL'] # optionally set an artifact rejection level
     
     #call read block - new variable 'data' is the full data structure
-    data = inputs['Tank']
+    data_full = inputs['Tank']
     
     # Use epoc_filter to extract data around our epoc event
     # Using the 't' parameter extracts data only from the time range around our epoc event.<br>
     # Use the 'values' parameter to specify allowed values of the REF_EPOC to extract.<br>
     # For stream events, the chunks of data are stored in cell arrays structured as `data.streams[GCaMP].filtered`
     
-    data = tdt.epoc_filter(data, REF_EPOC, t=TRANGE, values=SHOCK_CODE)
+    data = tdt.epoc_filter(data_full, REF_EPOC, t=TRANGE, values=SHOCK_CODE)
     
     # Optionally remove artifacts. If any waveform is above ARTIFACT level, or
     # below -ARTIFACT level, remove it from the data set.
@@ -106,6 +106,17 @@ def FiPhoEpocAveraging(inputs):
         for i in range(0, min1, N):
             small_lst.append(np.mean(lst[i:i+N-1]))
         F465.append(small_lst)
+        
+    # Additional section.
+    lst = data_full.streams[ISOS].data
+    F405_full = []
+    for i in range(0, len(lst), N):
+        F405_full.append(np.mean(lst[i:i+N-1])) # This is the moving window mean
+        
+    lst = data_full.streams[GCaMP].data
+    F465_full = []
+    for i in range(0, len(lst), N):
+        F465_full.append(np.mean(lst[i:i+N-1])) # This is the moving window mean
     
     #Create a mean signal, standard error of signal, and DC offset
     meanF405 = np.mean(F405, axis=0)
@@ -171,13 +182,30 @@ def FiPhoEpocAveraging(inputs):
         
     dFFerror = np.std(dFF, axis=0)/np.sqrt(np.size(dFF, axis=0))
     
-    # Getting the z-score and standard error
-    zall = []
-    for dF in Y_dF_all: 
-       ind = np.where((np.array(ts2)<BASELINE_PER[1]) & (np.array(ts2)>BASELINE_PER[0]))
-       zb = np.mean(dF[ind])
-       zsd = np.std(dF[ind])
-       zall.append((dF - zb)/zsd)
+    # Additional section.
+    Y_dF_all_full = []
+    x = np.array(F405_full)
+    y = np.array(F465_full)
+    bls = np.polyfit(x, y, 1)
+    fit_line = np.multiply(bls[0], x) + bls[1]
+    Y_dF_all_full = y-fit_line
+
+    if inputs['Baseline type'] == 'Specific':
+        # Getting the z-score and standard error
+        zall = []
+        for dF in Y_dF_all: 
+           ind = np.where((np.array(ts2)<BASELINE_PER[1]) & (np.array(ts2)>BASELINE_PER[0]))
+           zb = np.mean(dF[ind])
+           zsd = np.std(dF[ind])
+           zall.append((dF - zb)/zsd)
+           
+    elif inputs['Baseline type'] == 'Whole recording':
+        # Getting the z-score and standard error
+        zall = []
+        for dF in Y_dF_all: 
+           zb = np.mean(Y_dF_all_full)
+           zsd = np.std(Y_dF_all_full)
+           zall.append((dF - zb)/zsd)
        
     zerror = np.std(zall, axis=0)/np.sqrt(np.size(zall, axis=0))
     
