@@ -61,8 +61,9 @@ while True:
         break
 
 # Create a list of all CSV paths in the import location.
-import_paths = os.path.join(import_location, "*.csv")
-import_paths = glob(import_paths)
+import_paths  = os.path.join(import_location, "*.csv")
+import_paths  = glob(import_paths)
+exclude_paths = []
 
 # For every CSV in this list of paths:
 for path in import_paths:
@@ -71,6 +72,7 @@ for path in import_paths:
     df = pd.read_csv(path, header=None)
     if 'Direction between 2 means' in df[0].tolist():
         print('Skipping an already cleaned file.')
+        exclude_paths += [path]
         continue
     
     # Split the header and data to manipulate the data.
@@ -137,5 +139,7 @@ with open(text_export_path, 'w') as file:
     file.write(f'Minimum threshold was {diff_thresh}\n\n')
     file.write('Cleaned files were:\n')
     for path in import_paths:
+        if path in exclude_paths:
+            continue
         file.write(os.path.basename(path)+'\n')
         
