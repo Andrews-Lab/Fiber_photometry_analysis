@@ -272,6 +272,7 @@ def whole_recording_analysis(inputs):
     # Add unimportant variables that are needed by the FibPhoEpocAveraging code.
     inputs['Artifact RL'] = np.inf
     inputs['Analysis name'] = 'Whole recording'
+    inputs['Baseline type'] = 'Specific'
     
     # Add the event needed to analyse the whole recording to the TDT tank.
     SCORE_DICT = {"name":     'Analyse_this_event',
