@@ -139,7 +139,7 @@ def import_tank(inputs):
         # Use a custom TDT file reader code to find the proper start and end times
         # and re-import the tank using these numbers.
         start, end = find_start_and_end_times(inputs['Import location'])
-        start, end = find_1dp_without_rounding(start), find_1dp_without_rounding(end)
+        end = find_1dp_without_rounding(end)
         print(f'Re-importing the tank data from {start} secs to {end} secs')
         inputs['Tank'] = read_block(inputs['Import location'], t1=start, t2=end)
         
