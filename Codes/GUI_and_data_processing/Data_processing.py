@@ -10,6 +10,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from tdt import read_block
+from GUI_and_data_processing.Custom_TDT_file_reader import find_start_and_end_times
 
 def check_package_versions():
 
@@ -119,11 +120,29 @@ def import_settings_excel_file(inputs):
             
     return(list_tanks_full)
 
+def find_1dp_without_rounding(num):
+    decimal           = num - int(num)
+    decimal_truncated = float(str(decimal)[:3])
+    num_1dp           = int(num) + decimal_truncated
+    return(num_1dp)
+
 def import_tank(inputs):
     
     # Import the tank, so the stream names can be checked.
     print('\nPlease wait while the TDT tank is importing...')
-    inputs['Tank'] = read_block(inputs['Import location'])
+    try:
+        inputs['Tank'] = read_block(inputs['Import location'])
+    except ValueError:
+        # Sometimes users will get the error
+        # Warning: Block end marker not found, block did not end cleanly. Try 
+        # setting T2 smaller if errors occur
+        # Use a custom TDT file reader code to find the proper start and end times
+        # and re-import the tank using these numbers.
+        start, end = find_start_and_end_times(inputs['Import location'])
+        start, end = find_1dp_without_rounding(start), find_1dp_without_rounding(end)
+        print(f'Re-importing the tank data from {start} secs to {end} secs')
+        inputs['Tank'] = read_block(inputs['Import location'], t1=start, t2=end)
+        
     print('')
     
     return(inputs)
