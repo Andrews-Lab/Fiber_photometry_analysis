@@ -39,10 +39,11 @@ def find_lists_of_events(inputs):
         notes_lines = [find_comment(note) for note in notes_lines if note[:5]=='Note-']
         inputs['Tank'].epocs.Note.notes = np.array(notes_lines)
     # Create a list of notes.
-    notes_list = list(inputs['Tank'].epocs.Note.notes)
-    notes_list = list(set(notes_list)) # Remove non-unique elements.
-    if len(notes_list) > 0:
-        inputs['Options']['Notes list'] = notes_list
+    if 'Note' in inputs['Tank'].epocs.keys():
+        notes_list = list(inputs['Tank'].epocs.Note.notes)
+        notes_list = list(set(notes_list)) # Remove non-unique elements.
+        if len(notes_list) > 0:
+            inputs['Options']['Notes list'] = notes_list
         
     # VIDEO TIMESTAMP
 
@@ -170,12 +171,13 @@ def define_all_whole_recording_events(inputs):
                 SCORE_DICT['event_type'] += len(onsets)*[inputs['Event']['Event type'][key]]
             
         elif key == 'Notes list':
+            all_notes = list(inputs['Tank'].epocs.Note.notes)
             # Find the indices of the note events selected.
             if inputs['Event']['Name'][key] == 'All':
-                indices = [i for i in range(len(inputs['Options'][key]))]
+                indices = [i for i in range(len(all_notes))]
             else:
-                indices = [i for i in range(len(inputs['Options'][key])) 
-                           if inputs['Options'][key][i] in inputs['Event']['Name'][key]]
+                indices = [i for i in range(len(all_notes)) 
+                           if all_notes[i] in inputs['Event']['Name'][key]]
             # Put the note timestamps into the event called 'Analyse_this_event'.
             onsets  = list(inputs['Tank'].epocs.Note.onset[indices])
             offsets = list(inputs['Tank'].epocs.Note.offset[indices])
@@ -189,12 +191,13 @@ def define_all_whole_recording_events(inputs):
             SCORE_DICT['event_type'] += len(onsets)*[inputs['Event']['Event type'][key]]
                 
         elif key == 'Video timestamp list':
+            all_ts_notes = list(inputs['Tank'].epocs[inputs['Camera']].notes.notes)
             # Find the indices of the video timestamps selected.
             if inputs['Event']['Name'][key] == 'All':
-                indices = [i for i in range(len(inputs['Options'][key]))]
+                indices = [i for i in range(len(all_ts_notes))]
             else:
-                indices = [i for i in range(len(inputs['Options'][key])) 
-                           if inputs['Options'][key][i] in inputs['Event']['Name'][key]]
+                indices = [i for i in range(len(all_ts_notes)) 
+                           if all_ts_notes[i] in inputs['Event']['Name'][key]]
             # Put the video timestamps into the event called 'Analyse_this_event'.
             onsets  = list(inputs['Tank'].epocs[inputs['Camera']].notes.ts[indices])
             offsets = onsets[1:] + [np.inf]
@@ -263,11 +266,12 @@ def whole_recording_analysis(inputs):
     inputs['t-range'] = whole_recording_interval
     inputs['Baseline period'] = whole_recording_interval
     
-    # Remove the data at the start of the recording.
-    for signal in ['ISOS', 'GCaMP']:
-        stream = inputs['Tank'].streams[inputs[signal]].data
-        stream_thresholded = [t for t in stream if t >= inputs['Remove']]
-        inputs['Tank'].streams[inputs[signal]].data = np.array(stream_thresholded)
+    ### I think this shouldn't be here.
+    # # Remove the data at the start of the recording.
+    # for signal in ['ISOS', 'GCaMP']:
+    #     stream = inputs['Tank'].streams[inputs[signal]].data
+    #     stream_thresholded = [t for t in stream if t >= inputs['Remove']]
+    #     inputs['Tank'].streams[inputs[signal]].data = np.array(stream_thresholded)
     
     # Add unimportant variables that are needed by the FibPhoEpocAveraging code.
     inputs['Artifact RL'] = np.inf

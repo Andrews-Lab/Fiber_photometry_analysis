@@ -142,6 +142,7 @@ def import_tank(inputs):
         end = find_1dp_without_rounding(end)
         print(f'Re-importing the tank data from {start} secs to {end} secs')
         inputs['Tank'] = read_block(inputs['Import location'], t1=start, t2=end)
+        inputs['Tank'].info['duration'] = pd.Timedelta(seconds=end-start)
         
     print('')
     
