@@ -288,6 +288,7 @@ def whole_recording_analysis(inputs):
     
     # Run these inputs through the peri-events code.
     inputs, outputs = FiPhoEpocAveraging(inputs)
+    outputs['Timestamps'] = outputs['Timestamps'] + inputs['Remove']
     
     return(inputs, outputs)
 
@@ -303,7 +304,7 @@ def create_export_plots(inputs, outputs):
             # Plot the signal data.
             fig = plt.figure(figsize=(20,4))
             ax  = fig.add_subplot()
-            time_stamps = [t for t in outputs['Timestamps'] if t>=4]
+            # time_stamps = [t for t in outputs['Timestamps'] if t>=4] # This shouldn't be here.
             time_stamps = outputs['Timestamps']
             plt.plot(time_stamps, outputs[data_type][0], linewidth=2, color='green', label=data_type)
             
