@@ -578,6 +578,9 @@ def choose_whole_recording_options(inputs):
     default['dFF']     = 'False'
     default['ISOS']    = 'False'
     default['GCaMP']   = 'False'
+    default['Range']   = 'Whole'
+    default['Time1']   = 1000
+    default['Time2']   = 2000
     sg.theme("DarkTeal2")        
     layout = []
     layout += [[sg.T("")], [sg.Text("Choose how much data from the start\n"+
@@ -585,6 +588,14 @@ def choose_whole_recording_options(inputs):
                                     "for the artifact when turning on the LED)"), 
                             sg.Input(key="Remove",enable_events=True,
                                      default_text=default["Remove"], size=(8,1))]]
+    layout += [[sg.T("")], [sg.Text("Choose whether to plot the whole recording\n"+
+                                    "or part of the recording (in secs)"), 
+                            sg.Combo(['Whole','Part'],key="Range",enable_events=True,
+                                     default_value=default['Range']),
+                            sg.Input(key="Time1",enable_events=True, visible=False,
+                                     default_text=default["Time1"], size=(8,1)),
+                            sg.Input(key="Time2",enable_events=True, visible=False,
+                                     default_text=default["Time2"], size=(8,1))]]
     layout += [[sg.T("")], [sg.Text("Export the raw data"), 
                             sg.Combo(['True','False'],key="Raw data",enable_events=True,
                                      default_value=default['Raw data'])]]
@@ -607,8 +618,16 @@ def choose_whole_recording_options(inputs):
         if event == sg.WIN_CLOSED or event=="Exit":
             window.close()
             sys.exit()
-        elif event == "Submit":
+        if values["Range"] == "Part":
+            window.Element("Time1").Update(visible=True)
+            window.Element("Time2").Update(visible=True)
+        if values["Range"] == "Whole":
+            window.Element("Time1").Update(visible=False)
+            window.Element("Time2").Update(visible=False)
+        if event == "Submit":
             inputs['Remove'] = float(values['Remove'])
+            inputs['Type time range'] = values['Range']
+            inputs['Time range']    = [float(values['Time1']), float(values['Time2'])]
             inputs['Export ISOS']   = recognise_bool(values['ISOS'])
             inputs['Export GCaMP']  = recognise_bool(values['GCaMP'])
             inputs['Export dFF']    = recognise_bool(values['dFF'])

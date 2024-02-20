@@ -18,5 +18,5 @@ if inputs["Settings"] == True:
 else:
     # ... put this data in manually.
     # Run the set of TDT GUIs.
-    run_TDT_GUI(inputs)
+    inputs, outputs = run_TDT_GUI(inputs)
     

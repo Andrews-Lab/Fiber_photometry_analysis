@@ -384,8 +384,11 @@ def export_settings_excel_file(inputs):
                       'Options list', 'Options', 'Event']
     if inputs['Analysis'] == 'Whole recording':
         inputs_exclude += ['t-range', 'Baseline period', 'Create snippets']
+        if inputs['Type time range'] == 'Whole':
+            inputs_exclude += ['Time range']
     if inputs['Analysis'] == 'Between events':
         inputs_exclude += ['Create snippets']
+    
     # if inputs['Setup'] == 'Custom':
     #     inputs_exclude += ['Setup']
     # if inputs['Setup'] in ['Setup A', 'Setup B']:

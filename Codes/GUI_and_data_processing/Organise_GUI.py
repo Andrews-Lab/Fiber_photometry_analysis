@@ -88,6 +88,7 @@ def run_TDT_GUI(inputs):
             export_preview_image_between_events(inputs, outputs)
             
     export_settings_excel_file(inputs)
+    return(inputs, outputs)
 
 def analyse_settings_file(inputs):
     
@@ -149,4 +150,6 @@ def analyse_settings_file(inputs):
                 
             if inputs['Image'] == True:
                 export_preview_image_between_events(inputs, outputs)
+                
+    return(inputs, outputs)
         

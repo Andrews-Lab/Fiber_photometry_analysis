@@ -125,7 +125,9 @@ def define_all_whole_recording_events(inputs):
     # This defines the width of the point events (rather than events with starts
     # and stops).
     total_duration = inputs['Tank'].info.duration.total_seconds()
-    width_line = total_duration * 0.0015
+    width_line = total_duration * 0.0010
+    if inputs['Type time range'] == 'Part':
+        width_line = (inputs['Time range'][1] - inputs['Time range'][0]) * 0.0010
     
     # Re-organise the data from this format:
     # inputs['Name'] = ['Left','Start']
@@ -143,7 +145,7 @@ def define_all_whole_recording_events(inputs):
         indices[type1] += [i]
     inputs['Event'] = {'Name':           {type1:list(np.array(inputs['Name'])[indices[type1]]) 
                                           for type1 in types_list}, 
-                       'All or specific':{type1:list(np.array(inputs['All or specific'])[indices[type1]])[0] 
+                       'All or specific':{type1:list(np.array(inputs['All or specific'])[indices[type1]])[0]
                                           for type1 in types_list}, 
                        'Event type':     {type1:list(np.array(inputs['Event type'])[indices[type1]])[0] 
                                           for type1 in types_list}}
@@ -153,7 +155,7 @@ def define_all_whole_recording_events(inputs):
     
         if key == 'Other list':
             # Find the event names selected.
-            if inputs['Event']['Name'][key] == 'All':
+            if inputs['Event']['Name'][key] == ['All']:
                 other_list = inputs['Options'][key]
             else:
                 other_list = inputs['Event']['Name'][key] 
@@ -173,7 +175,7 @@ def define_all_whole_recording_events(inputs):
         elif key == 'Notes list':
             all_notes = list(inputs['Tank'].epocs.Note.notes)
             # Find the indices of the note events selected.
-            if inputs['Event']['Name'][key] == 'All':
+            if inputs['Event']['Name'][key] == ['All']:
                 indices = [i for i in range(len(all_notes))]
             else:
                 indices = [i for i in range(len(all_notes)) 
@@ -193,7 +195,7 @@ def define_all_whole_recording_events(inputs):
         elif key == 'Video timestamp list':
             all_ts_notes = list(inputs['Tank'].epocs[inputs['Camera']].notes.notes)
             # Find the indices of the video timestamps selected.
-            if inputs['Event']['Name'][key] == 'All':
+            if inputs['Event']['Name'][key] == ['All']:
                 indices = [i for i in range(len(all_ts_notes))]
             else:
                 indices = [i for i in range(len(all_ts_notes)) 
@@ -213,7 +215,7 @@ def define_all_whole_recording_events(inputs):
         elif key == 'Ethovision event list':      
             
             # Find the event names selected.
-            if inputs['Event']['Name'][key] == 'All':
+            if inputs['Event']['Name'][key] == ['All']:
                 ethovision_list = inputs['Options'][key]
             else:
                 ethovision_list = inputs['Event']['Name'][key] 
@@ -339,6 +341,8 @@ def create_export_plots(inputs, outputs):
             ax.set_ylabel(data_type)
             ax.set_xlabel('Time (secs)')
             ax.set_title('Whole recording with events highlighted')
+            if inputs['Type time range'] == 'Part':
+                ax.set_xlim(inputs['Time range'])
             plt.tight_layout()
             
             # Create raw data file.
@@ -358,12 +362,21 @@ def create_export_plots(inputs, outputs):
                 return(np.nan)
             raw_data['Events'] = raw_data['Intervals'].apply(add_event_info, 
                                     onsets=starts, offsets=ends, notes=events)
+            behav_to_num = {notes[i]:i for i in range(len(notes))}
+            def convert_behav_to_num(value, dict1=behav_to_num):
+                if pd.isna(value):
+                    return(np.nan)
+                else:
+                    return(behav_to_num[value])
+            raw_data['Events as numbers'] = raw_data['Events'].apply(convert_behav_to_num,
+                                                                     dict1=behav_to_num)
             raw_data = raw_data.drop(['Timestamps (shifted)', 'Intervals'], axis=1)
             
             # Save the plots and raw data.
             outputs['Plots'][data_type] = fig
             outputs['Dataframe'][data_type] = raw_data
-            return(outputs)
+    
+    return(outputs)
             
 def export_whole_recording_plots(inputs, outputs):
 
