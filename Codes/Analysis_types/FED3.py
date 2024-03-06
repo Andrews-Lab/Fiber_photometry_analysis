@@ -80,6 +80,33 @@ def find_event_names(inputs):
     inputs['Name'] += [inputs['Options list'][0]] # For the extra event.
 
     return(inputs)
+
+def find_event_names_Pavlovian(inputs):
+    
+    if inputs['Setup'] == 'Setup A':
+        possible_pellets = ['Aplt','APlt']
+    elif inputs['Setup'] == 'Setup B':
+        possible_pellets = ['Bplt','BPlt']
+            
+    # Find the element from data.epocs that matches one of the possible pellet and active poke names.
+    PELLET = list(set(possible_pellets).intersection(inputs['Options list']))
+    
+    # If the event names cannot be found, try the generic "Left", "Right", "Pelt" or "Rewd".
+    # They could refer to setup A or setup B, so those were not used first.
+    if len(PELLET) == 0:
+        possible_pellets += ['Pelt']
+        PELLET = list(set(possible_pellets).intersection(inputs['Options list']))
+    
+    # If we can automatically detect the event names for left poke, right poke 
+    # and pellet, make those appear automatically.
+    inputs['Custom'] = ['Stimulus','Pellet']
+    inputs['Name']   = [inputs['Options list'][0]]
+    if len(PELLET) == 1:
+        inputs['Name'] += [PELLET[0]]
+    else:
+        inputs['Name'] += [inputs['Options list'][0]]    
+
+    return(inputs)
     
 def create_unique_TDT_event_FED3(inputs):
     

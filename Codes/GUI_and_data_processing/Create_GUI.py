@@ -71,8 +71,8 @@ def choose_basic_TDT_options(inputs):
 
     # Choose the import location, export location and setup.
     default = {}
-    default["Import location"] = r'C:\Users\hazza\Desktop\Fibre photometry GUI\Photometry tanks\NAc_3147K_2614K-211118-105517'
-    default["Export location"] = r'C:\Users\hazza\Desktop\Fibre photometry GUI\Photometry tanks\NAc_3147K_2614K-211118-105517'
+    default["Import location"] = r'C:/Users/hazza/Downloads/GrabDA_NAc_103284-240223-122953'
+    default["Export location"] = r'C:/Users/hazza/Downloads/GrabDA_NAc_103284-240223-122953'
     default["Setup"]           = 'Setup A'
     default["Camera"]          = 'Camera 1'
     default["Analysis"]        = 'Peri-events'
@@ -640,12 +640,71 @@ def choose_whole_recording_options(inputs):
 
 # TDT -> FED3 -> choose the poke to analyse.
 
+def choose_type_FED3_task(inputs):
+    
+    default = {}
+    default['Task type'] = 'Normal task'
+    task_types = ['Normal task','Pavlovian task']
+    layout = [[sg.T("")], [sg.Text("Choose the type of FED3 task.")], [sg.T("")],
+        [sg.Combo(task_types, key='Task type', default_value=default['Task type'])],
+        [sg.T("")], [sg.Button("Submit")]]
+    window = sg.Window('Photometry analysis', layout)
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event=="Exit":
+            window.close()
+            sys.exit()
+        elif event == "Submit":
+            inputs['Task type'] = values['Task type']
+            window.close()
+            break
+    if inputs['Task type'] not in task_types:
+        text = f"""
+        The task type is invalid. It should be either "Normal task" or
+        "Pavlovlian task", when it is instead "{inputs['Task type']}".
+        """
+        raise ValueError(text)
+    return(inputs)
+
 def choose_FED3_options(inputs):
             
     default = {}
     default["Analysis name"] = 'FED3'
     sg.theme("DarkTeal2")
     names_with_blanks = ['Left           ', 'Right         ', 'Pellet        ', 'Rewarded  ', 'Extra event']
+    layout = [[sg.T("")], [sg.Text("Choose a custom name for this analysis"),
+               sg.Input(key="Analysis name",enable_events=True, size=(20,1),
+                        default_text=default["Analysis name"])], [sg.T("")],
+              [sg.Text("Tick the events you want to include in the analysis and "+
+                       "select the \ncorresponding event names.")]] 
+    for i in range(len(inputs['Custom'])):
+        layout += [[sg.Checkbox(names_with_blanks[i], default=True, key=inputs['Custom'][i]+' include'),
+                    sg.Combo(inputs['Options list'], key=inputs['Custom'][i]+' name', 
+                             default_value=inputs['Name'][i])]]
+    layout += [[sg.T("")], [sg.Button("Submit")]]
+    window  = sg.Window('Photometry Analysis', layout)
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED or event=="Exit":
+            window.close()
+            sys.exit()
+        elif event == "Submit":
+            inputs['Analysis name'] = values['Analysis name']
+            inputs['Name']          = [values[inputs['Custom'][i]+' name'] for i in range(len(inputs['Custom']))
+                                       if values[inputs['Custom'][i]+' include'] == True]
+            inputs['Custom']        = [inputs['Custom'][i] for i in range(len(inputs['Custom']))
+                                       if values[inputs['Custom'][i]+' include'] == True]
+            window.close()
+            break
+
+    return(inputs)
+
+def choose_FED3_Pavlovian_options(inputs):
+            
+    default = {}
+    default["Analysis name"] = 'FED3'
+    sg.theme("DarkTeal2")
+    names_with_blanks = ['Stimulus','Pellet    ']
     layout = [[sg.T("")], [sg.Text("Choose a custom name for this analysis"),
                sg.Input(key="Analysis name",enable_events=True, size=(20,1),
                         default_text=default["Analysis name"])], [sg.T("")],
