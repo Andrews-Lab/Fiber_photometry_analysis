@@ -5,7 +5,7 @@ dependencies:
   - python=3.7
   - pip
   - pip:
-    - PySimpleGUI==4.60.5
+    - PySimpleGUI
     - numpy
     - pandas
     - opencv-python
