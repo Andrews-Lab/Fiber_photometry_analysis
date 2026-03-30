@@ -43,6 +43,10 @@ def Peri_events_post_processing():
             filetypes=[("Excel files", "*.xlsx")]
         )
 
+        if not metadata_file:
+            root.destroy()
+            return
+
         metadata_df = pd.read_excel(metadata_file)
 
     else:
@@ -89,7 +93,7 @@ def Peri_events_post_processing():
                     "Genotype":row["genotype"].get()
                 })
 
-            global metadata_df
+            nonlocal metadata_df
             metadata_df=pd.DataFrame(metadata_list)
 
             metadata_df.to_excel(
@@ -107,6 +111,11 @@ def Peri_events_post_processing():
     # ------------------------------------------------------------
     # SORT METADATA
     # ------------------------------------------------------------
+    if metadata_df is None or metadata_df.empty:
+        messagebox.showerror("Error", "Metadata not loaded correctly.")
+        root.destroy()
+        return
+    
     metadata_df["Mouse ID"]=metadata_df["Mouse ID"].astype(str)
     metadata_df["Mouse ID numeric"]=pd.to_numeric(metadata_df["Mouse ID"],errors="coerce")
 
@@ -636,4 +645,4 @@ def Peri_events_post_processing():
     return
 
 if __name__ == "__main__":
-    peri_events_post_processing()
+    Peri_events_post_processing()

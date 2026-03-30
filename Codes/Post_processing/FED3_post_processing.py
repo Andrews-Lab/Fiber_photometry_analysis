@@ -154,6 +154,15 @@ def FED3_post_processing():
     # ------------------------------------------------------------
     # SORT METADATA
     # ------------------------------------------------------------
+    
+    if metadata_df is None:
+        messagebox.showerror(
+            "Metadata Error",
+            "Metadata was not created or loaded properly."
+        )
+        root.destroy()
+        return
+
     meta_columns = [col for col in metadata_df.columns if col != "Filename"]
 
     mouse_id_col = meta_columns[0]
@@ -185,7 +194,7 @@ def FED3_post_processing():
     selected_tabs = []
 
     def confirm_tabs():
-        global selected_tabs
+        nonlocal selected_tabs
         selected_tabs = [tab for tab, var in tab_vars.items() if var.get()]
         tab_window.destroy()
 
@@ -193,6 +202,14 @@ def FED3_post_processing():
         .grid(row=len(available_tabs)+1, column=0)
 
     root.wait_window(tab_window)
+
+    if not selected_tabs:
+        messagebox.showerror(
+            "Selection Error",
+            "No event tabs selected."
+        )
+        root.destroy()
+        return
 
     # ------------------------------------------------------------
     # ASK USER IF PLOTS SHOULD DISPLAY
@@ -272,7 +289,24 @@ def FED3_post_processing():
             mouse = str(row[mouse_id_col])
             sex = row[sex_col]
             
-            df = pd.read_excel(file, sheet_name=tab, header=None)
+            try:
+                df = pd.read_excel(file, sheet_name=tab, header=None)
+
+                custom_idx = df[df.eq("Custom name").any(axis=1)].index[0]
+                event_note_idx = df[df.eq("Event note").any(axis=1)].index[0]
+                max_idx = df[df.eq("Max values").any(axis=1)].index[0]
+
+                max_time_idx = df[df.astype(str).apply(
+                    lambda r: r.str.contains("Time of max", case=False).any(), axis=1
+                )].index[0]
+
+                baseline_idx = df[df.astype(str).apply(
+                    lambda r: r.str.contains("Time to baseline", case=False).any(), axis=1
+                )].index[0]
+
+            except Exception:
+                print(f"Skipping {tab} for {row['Filename']} (invalid structure)")
+                continue
 
             custom_idx = df[df.eq("Custom name").any(axis=1)].index[0]
             event_note_idx = df[df.eq("Event note").any(axis=1)].index[0]
@@ -358,6 +392,10 @@ def FED3_post_processing():
         # ------------------------------------------------------------
         # STACKED PER-MOUSE MEAN ± SEM PLOT
         # ------------------------------------------------------------
+        if len(combined_raw[tab]) == 0:
+            print(f"No data found for {tab}, skipping.")
+            continue
+        
         n_mice = len(combined_raw[tab])
 
         fig, axes = plt.subplots(n_mice, 1, figsize=(8, 2*n_mice), sharex=True)
@@ -380,7 +418,7 @@ def FED3_post_processing():
             )
 
             ax.axvline(0, linestyle="--")
-            ax.set_xlim(-20, 60)
+            ax.set_xlim(reference_time.min(), reference_time.max())
 
             ax.set_ylabel(mouse)
 
@@ -421,7 +459,7 @@ def FED3_post_processing():
             )
 
         plt.axvline(0, linestyle="--")
-        plt.xlim(-20, 60)
+        plt.xlim(reference_time.min(), reference_time.max())
         plt.xlabel("Time (s)")
         plt.ylabel("Z-score")
         plt.title(f"{tab} Events ({group_column} Overlay)")
@@ -1040,9 +1078,21 @@ def FED3_post_processing():
     # ------------------------------------------------------------
     output_path = os.path.join(save_folder, "FED3_FP_Combined.xlsx")
 
+    if all(len(combined_raw[tab]) == 0 for tab in selected_tabs):
+        messagebox.showerror(
+            "No Data",
+            "No valid data was extracted.\nExcel file will not be created."
+        )
+        root.destroy()
+        return
+
     with pd.ExcelWriter(output_path) as writer:
 
         for tab in selected_tabs:
+
+            if len(combined_raw[tab]) == 0:
+                print(f"Skipping export for {tab} (no data)")
+                continue
 
             # ------------------------------------------------------------
             # EVENTS
@@ -1538,4 +1588,3 @@ def FED3_post_processing():
 
 if __name__ == "__main__":
     FED3_post_processing()
-    
