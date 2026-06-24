@@ -138,7 +138,7 @@ def FED3_post_processing():
                     group_header: row["genotype"].get()
                 })
 
-            global metadata_df
+            nonlocal metadata_df
             metadata_df = pd.DataFrame(metadata_list)
 
             metadata_path = os.path.join(save_folder, "FED3_FP_Metadata.xlsx")
@@ -260,6 +260,275 @@ def FED3_post_processing():
     root.wait_window(window_popup)
 
     # ------------------------------------------------------------
+    # PLOTTING HELPERS
+    # ------------------------------------------------------------
+    def clean_group_value(value):
+        if pd.isna(value):
+            return "Unknown"
+
+        value = str(value).strip()
+        return value if value else "Unknown"
+
+    def safe_filename_value(value):
+        value = clean_group_value(value)
+        safe = "".join(ch if ch.isalnum() or ch in ["-", "_"] else "_" for ch in value)
+        return safe.strip("_") or "Unknown"
+
+    def get_group_key(item, group_mode):
+        mouse, genotype, sex, values = item
+        genotype = clean_group_value(genotype)
+        sex = clean_group_value(sex)
+
+        if group_mode == "genotype":
+            return genotype
+        if group_mode == "sex":
+            return sex
+        if group_mode == "sex_genotype":
+            return f"{sex} {genotype}"
+
+        return "All"
+
+    def grouped_items(data, group_mode):
+        groups = {}
+
+        for item in data:
+            key = get_group_key(item, group_mode)
+            groups.setdefault(key, []).append(item)
+
+        return groups
+
+    def subset_items(data, filter_mode, filter_value):
+        filtered = []
+
+        for item in data:
+            mouse, genotype, sex, values = item
+            if filter_mode == "sex" and clean_group_value(sex) == filter_value:
+                filtered.append(item)
+            elif filter_mode == "genotype" and clean_group_value(genotype) == filter_value:
+                filtered.append(item)
+
+        return filtered
+
+    def unique_group_count(data, group_mode):
+        return len(set(get_group_key(item, group_mode) for item in data))
+
+    def finish_plot(filename):
+        plt.savefig(os.path.join(save_folder, filename), dpi=300)
+
+        if show_plots:
+            plt.show()
+        else:
+            plt.close()
+
+    def plot_trace_overlay(data, tab, group_mode, group_label, filename_suffix, title_suffix=None):
+        if len(data) == 0:
+            return
+
+        groups = grouped_items(data, group_mode)
+        if len(groups) == 0:
+            return
+
+        plt.figure()
+
+        for group_name in sorted(groups.keys()):
+            matrices = [item[3] for item in groups[group_name]]
+            if len(matrices) == 0:
+                continue
+
+            combined = np.hstack(matrices)
+            mean_trace = np.nanmean(combined, axis=1)
+            sem_trace = np.nanstd(combined, axis=1) / np.sqrt(combined.shape[1])
+
+            plt.plot(reference_time, mean_trace, label=group_name)
+            plt.fill_between(
+                reference_time,
+                mean_trace - sem_trace,
+                mean_trace + sem_trace,
+                alpha=0.3
+            )
+
+        plt.axvline(0, linestyle="--")
+        plt.xlim(reference_time.min(), reference_time.max())
+        plt.xlabel("Time (s)")
+        plt.ylabel("Z-score")
+
+        title_group = title_suffix if title_suffix else f"{group_label} Overlay"
+        plt.title(f"{tab} Events ({title_group})")
+        plt.legend()
+
+        finish_plot(f"FED3_FP_{tab}_Overlay{filename_suffix}.png")
+
+    def pad_group_values(items):
+        values = [item[3] for item in items]
+        if len(values) == 0:
+            return None
+
+        max_len = max(len(v) for v in values)
+        padded = []
+
+        for v in values:
+            arr = np.full(max_len, np.nan)
+            arr[:len(v)] = v
+            padded.append(arr)
+
+        return np.vstack(padded)
+
+    def transform_event_values(combined, transform):
+        if transform == "cumulative":
+            return np.nancumsum(combined, axis=1)
+
+        if transform == "cummean":
+            cumulative = np.nancumsum(combined, axis=1)
+            valid_counts = np.cumsum(~np.isnan(combined), axis=1)
+            return np.divide(
+                cumulative,
+                valid_counts,
+                out=np.full_like(cumulative, np.nan, dtype=float),
+                where=valid_counts != 0
+            )
+
+        return combined
+
+    def plot_event_metric_overlay(
+        data,
+        tab,
+        y_label,
+        title_label,
+        filename_base,
+        group_mode,
+        group_label,
+        filename_suffix,
+        transform="raw",
+        title_suffix=None
+    ):
+        if len(data) == 0:
+            return
+
+        groups = grouped_items(data, group_mode)
+        if len(groups) == 0:
+            return
+
+        plt.figure()
+
+        for group_name in sorted(groups.keys()):
+            combined = pad_group_values(groups[group_name])
+            if combined is None:
+                continue
+
+            combined = transform_event_values(combined, transform)
+            mean_vals = np.nanmean(combined, axis=0)
+            sem_vals = np.nanstd(combined, axis=0) / np.sqrt(combined.shape[0])
+            events = np.arange(1, len(mean_vals) + 1)
+
+            plt.plot(events, mean_vals, label=group_name)
+            plt.fill_between(events, mean_vals - sem_vals, mean_vals + sem_vals, alpha=0.3)
+
+        plt.xlabel("Event Number")
+        plt.ylabel(y_label)
+
+        title_group = title_suffix if title_suffix else f"{group_label} Overlay"
+        plt.title(f"{tab} {title_label} ({title_group})")
+        plt.legend()
+
+        finish_plot(f"FED3_FP_{tab}_{filename_base}{filename_suffix}.png")
+
+    def plot_grouping_set(trace_data, metric_specs, tab, group_mode, group_label, filename_suffix, title_suffix=None):
+        plot_trace_overlay(
+            trace_data,
+            tab,
+            group_mode=group_mode,
+            group_label=group_label,
+            filename_suffix=filename_suffix,
+            title_suffix=title_suffix
+        )
+
+        for spec in metric_specs:
+            plot_event_metric_overlay(
+                spec["data"],
+                tab,
+                y_label=spec["y_label"],
+                title_label=spec["title_label"],
+                filename_base=spec["filename_base"],
+                group_mode=group_mode,
+                group_label=group_label,
+                filename_suffix=filename_suffix,
+                transform=spec.get("transform", "raw"),
+                title_suffix=title_suffix
+            )
+
+    def plot_available_groupings(trace_data, metric_specs, tab):
+        plot_grouping_set(
+            trace_data,
+            metric_specs,
+            tab,
+            group_mode="genotype",
+            group_label=group_column,
+            filename_suffix=""
+        )
+
+        if unique_group_count(trace_data, "sex") > 1:
+            plot_grouping_set(
+                trace_data,
+                metric_specs,
+                tab,
+                group_mode="sex",
+                group_label=sex_col,
+                filename_suffix=f"_by_{safe_filename_value(sex_col)}"
+            )
+
+        if unique_group_count(trace_data, "sex_genotype") > 1:
+            plot_grouping_set(
+                trace_data,
+                metric_specs,
+                tab,
+                group_mode="sex_genotype",
+                group_label=f"{sex_col} x {group_column}",
+                filename_suffix=f"_by_{safe_filename_value(sex_col)}_{safe_filename_value(group_column)}"
+            )
+
+        for sex_value in sorted(set(clean_group_value(item[2]) for item in trace_data)):
+            subset_trace = subset_items(trace_data, "sex", sex_value)
+            if unique_group_count(subset_trace, "genotype") <= 1:
+                continue
+
+            subset_specs = []
+            for spec in metric_specs:
+                subset_spec = spec.copy()
+                subset_spec["data"] = subset_items(spec["data"], "sex", sex_value)
+                subset_specs.append(subset_spec)
+
+            plot_grouping_set(
+                subset_trace,
+                subset_specs,
+                tab,
+                group_mode="genotype",
+                group_label=group_column,
+                filename_suffix=f"_{safe_filename_value(sex_col)}_{safe_filename_value(sex_value)}_by_{safe_filename_value(group_column)}",
+                title_suffix=f"{group_column} Overlay, {sex_col}: {sex_value}"
+            )
+
+        for genotype_value in sorted(set(clean_group_value(item[1]) for item in trace_data)):
+            subset_trace = subset_items(trace_data, "genotype", genotype_value)
+            if unique_group_count(subset_trace, "sex") <= 1:
+                continue
+
+            subset_specs = []
+            for spec in metric_specs:
+                subset_spec = spec.copy()
+                subset_spec["data"] = subset_items(spec["data"], "genotype", genotype_value)
+                subset_specs.append(subset_spec)
+
+            plot_grouping_set(
+                subset_trace,
+                subset_specs,
+                tab,
+                group_mode="sex",
+                group_label=sex_col,
+                filename_suffix=f"_{safe_filename_value(group_column)}_{safe_filename_value(genotype_value)}_by_{safe_filename_value(sex_col)}",
+                title_suffix=f"{sex_col} Overlay, {group_column}: {genotype_value}"
+            )
+
+    # ------------------------------------------------------------
     # STORAGE
     # ------------------------------------------------------------
     combined_raw = {tab: [] for tab in selected_tabs}
@@ -279,7 +548,6 @@ def FED3_post_processing():
     # ------------------------------------------------------------
     for tab in selected_tabs:
 
-        genotype_traces = {}
 
         for _, row in metadata_df.iterrows():
 
@@ -384,10 +652,6 @@ def FED3_post_processing():
             combined_auc[tab].append((mouse, genotype, sex, auc_vals))
             combined_meanz[tab].append((mouse, genotype, sex, meanz_vals))
 
-            if genotype not in genotype_traces:
-                genotype_traces[genotype] = []
-
-            genotype_traces[genotype].append(trial_matrix)
 
         # ------------------------------------------------------------
         # STACKED PER-MOUSE MEAN ± SEM PLOT
@@ -436,642 +700,84 @@ def FED3_post_processing():
             plt.close()
 
         # ------------------------------------------------------------
-        # GENOTYPE OVERLAY PLOT
+        # GROUPED OVERLAY PLOTS
         # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(genotype_traces.keys()):
-
-            matrices = genotype_traces[genotype]
-
-            combined = np.hstack(matrices)
-
-            mean_trace = np.nanmean(combined, axis=1)
-            sem_trace = np.nanstd(combined, axis=1) / np.sqrt(combined.shape[1])
-
-            plt.plot(reference_time, mean_trace, label=genotype)
-
-            plt.fill_between(
-                reference_time,
-                mean_trace - sem_trace,
-                mean_trace + sem_trace,
-                alpha=0.3
-            )
-
-        plt.axvline(0, linestyle="--")
-        plt.xlim(reference_time.min(), reference_time.max())
-        plt.xlabel("Time (s)")
-        plt.ylabel("Z-score")
-        plt.title(f"{tab} Events ({group_column} Overlay)")
-        plt.legend()
-
-        plot_path = os.path.join(save_folder, f"FED3_FP_{tab}_Overlay.png")
-        plt.savefig(plot_path, dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # MAX VALUE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_max[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_max[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            # ---- FIX: pad arrays to equal length ----
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-            # -----------------------------------------
-
-            mean_vals = np.nanmean(combined, axis=0)
-            sem_vals = np.nanstd(combined, axis=0) / np.sqrt(combined.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(
-                events,
-                mean_vals-sem_vals,
-                mean_vals+sem_vals,
-                alpha=0.3
-            )
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Max Z-score")
-        plt.title(f"{tab} Max Value ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_MaxValue_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # CUMULATIVE MAX VALUE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_max[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_max[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            cumulative = np.nancumsum(combined, axis=1)
-
-            mean_vals = np.nanmean(cumulative, axis=0)
-            sem_vals = np.nanstd(cumulative, axis=0) / np.sqrt(cumulative.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Cumulative Max Z-score")
-        plt.title(f"{tab} Cumulative Max Value ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_CumMax_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # CUMULATIVE MEAN MAX VALUE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_max[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_max[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            cumulative = np.nancumsum(combined, axis=1)
-
-            valid_counts = np.cumsum(~np.isnan(combined), axis=1)
-
-            cummean = np.divide(
-                cumulative,
-                valid_counts,
-                out=np.full_like(cumulative, np.nan, dtype=float),
-                where=valid_counts != 0
-            )
-
-            mean_vals = np.nanmean(cummean, axis=0)
-            sem_vals = np.nanstd(cummean, axis=0) / np.sqrt(cummean.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Cumulative Mean Max Z-score")
-        plt.title(f"{tab} CumMean Max Value ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_CumMeanMax_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-
-        # ------------------------------------------------------------
-        # TIME OF MAX VALUE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_max_time[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_max_time[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            # ---- FIX: pad arrays ----
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-            # -------------------------
-
-            mean_vals = np.nanmean(combined, axis=0)
-            sem_vals = np.nanstd(combined, axis=0) / np.sqrt(combined.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(
-                events,
-                mean_vals-sem_vals,
-                mean_vals+sem_vals,
-                alpha=0.3
-            )
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Time of Max (s)")
-        plt.title(f"{tab} Time of Max Value ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_TimeOfMax_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-
-        # ------------------------------------------------------------
-        # TIME TO BASELINE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_time_to_baseline[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_time_to_baseline[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            # ---- FIX: pad arrays ----
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-            # -------------------------
-
-            mean_vals = np.nanmean(combined, axis=0)
-            sem_vals = np.nanstd(combined, axis=0) / np.sqrt(combined.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(
-                events,
-                mean_vals-sem_vals,
-                mean_vals+sem_vals,
-                alpha=0.3
-            )
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Time to Baseline (s)")
-        plt.title(f"{tab} Time to Baseline ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_TimeToBaseline_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # CUMULATIVE TIME TO BASELINE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_time_to_baseline[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_time_to_baseline[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            cumulative = np.nancumsum(combined, axis=1)
-
-            mean_vals = np.nanmean(cumulative, axis=0)
-            sem_vals = np.nanstd(cumulative, axis=0) / np.sqrt(cumulative.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Cumulative Time To Baseline (s)")
-        plt.title(f"{tab} Cumulative Time To Baseline ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_CumBaseline_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # CUMULATIVE MEAN TIME TO BASELINE OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_time_to_baseline[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_time_to_baseline[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            cumulative = np.nancumsum(combined, axis=1)
-
-            valid_counts = np.cumsum(~np.isnan(combined), axis=1)
-
-            cummean = np.divide(
-                cumulative,
-                valid_counts,
-                out=np.full_like(cumulative, np.nan, dtype=float),
-                where=valid_counts != 0
-            )
-
-            mean_vals = np.nanmean(cummean, axis=0)
-            sem_vals = np.nanstd(cummean, axis=0) / np.sqrt(cummean.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel("Cumulative Mean Time To Baseline (s)")
-        plt.title(f"{tab} CumMean Time To Baseline ({group_column} Overlay)")
-        plt.legend()
-
-        plt.savefig(os.path.join(save_folder, f"FED3_FP_{tab}_CumMeanBaseline_Overlay.png"), dpi=300)
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # AUC OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_auc[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_auc[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            mean_vals = np.nanmean(combined, axis=0)
-            sem_vals = np.nanstd(combined, axis=0) / np.sqrt(combined.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel(f"AUC ({time_window['start']}–{time_window['end']} s)")
-        plt.title(f"{tab} AUC ({time_window['start']}–{time_window['end']} s)")
-        plt.legend()
-
-        plt.savefig(
-            os.path.join(
-                save_folder,
-                f"FED3_FP_{tab}_AUC_{time_window['start']}_{time_window['end']}s_Overlay.png"
-            ),
-            dpi=300
-        )
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # CUMULATIVE AUC OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_auc[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_auc[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            cumulative = np.nancumsum(combined, axis=1)
-
-            mean_vals = np.nanmean(cumulative, axis=0)
-            sem_vals = np.nanstd(cumulative, axis=0) / np.sqrt(cumulative.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel(f"Cumulative AUC ({time_window['start']}–{time_window['end']} s)")
-        plt.title(f"{tab} Cumulative AUC ({time_window['start']}–{time_window['end']} s)")
-        plt.legend()
-
-        plt.savefig(
-            os.path.join(
-                save_folder,
-                f"FED3_FP_{tab}_CumAUC_{time_window['start']}_{time_window['end']}s_Overlay.png"
-            ),
-            dpi=300
-        )
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-        
-        # ------------------------------------------------------------
-        # CUMULATIVE MEAN AUC OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_auc[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_auc[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            cumulative = np.nancumsum(combined, axis=1)
-
-            valid_counts = np.cumsum(~np.isnan(combined), axis=1)
-
-            cummean = np.divide(
-                cumulative,
-                valid_counts,
-                out=np.full_like(cumulative, np.nan, dtype=float),
-                where=valid_counts != 0
-            )
-
-            mean_vals = np.nanmean(cummean, axis=0)
-            sem_vals = np.nanstd(cummean, axis=0) / np.sqrt(cummean.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel(f"Cumulative Mean AUC ({time_window['start']}–{time_window['end']} s)")
-        plt.title(f"{tab} CumMean AUC ({time_window['start']}–{time_window['end']} s)")
-        plt.legend()
-
-        plt.savefig(
-            os.path.join(
-                save_folder,
-                f"FED3_FP_{tab}_CumMeanAUC_{time_window['start']}_{time_window['end']}s_Overlay.png"
-            ),
-            dpi=300
-        )
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
-
-        # ------------------------------------------------------------
-        # MEAN Z WINDOW OVERLAY PLOT
-        # ------------------------------------------------------------
-        plt.figure()
-
-        for genotype in sorted(set([g for _, g, _, _ in combined_meanz[tab]])):
-
-            geno_vals = []
-
-            for mouse, geno, sex, vals in combined_meanz[tab]:
-                if geno == genotype:
-                    geno_vals.append(vals)
-
-            if len(geno_vals) == 0:
-                continue
-
-            max_len = max(len(v) for v in geno_vals)
-
-            padded = []
-            for v in geno_vals:
-                arr = np.full(max_len, np.nan)
-                arr[:len(v)] = v
-                padded.append(arr)
-
-            combined = np.vstack(padded)
-
-            mean_vals = np.nanmean(combined, axis=0)
-            sem_vals = np.nanstd(combined, axis=0) / np.sqrt(combined.shape[0])
-
-            events = np.arange(1, len(mean_vals)+1)
-
-            plt.plot(events, mean_vals, label=genotype)
-
-            plt.fill_between(events, mean_vals-sem_vals, mean_vals+sem_vals, alpha=0.3)
-
-        plt.xlabel("Event Number")
-        plt.ylabel(f"Mean Z ({time_window['start']}–{time_window['end']} s)")
-        plt.title(f"{tab} Mean Z Window ({time_window['start']}–{time_window['end']} s)")
-        plt.legend()
-
-        plt.savefig(
-            os.path.join(
-                save_folder,
-                f"FED3_FP_{tab}_MeanZ_{time_window['start']}_{time_window['end']}s_Overlay.png"
-            ),
-            dpi=300
-        )
-
-        if show_plots:
-            plt.show()
-        else:
-            plt.close()
+        metric_specs = [
+            {
+                "data": combined_max[tab],
+                "y_label": "Max Z-score",
+                "title_label": "Max Value",
+                "filename_base": "MaxValue_Overlay"
+            },
+            {
+                "data": combined_max[tab],
+                "y_label": "Cumulative Max Z-score",
+                "title_label": "Cumulative Max Value",
+                "filename_base": "CumMax_Overlay",
+                "transform": "cumulative"
+            },
+            {
+                "data": combined_max[tab],
+                "y_label": "Cumulative Mean Max Z-score",
+                "title_label": "CumMean Max Value",
+                "filename_base": "CumMeanMax_Overlay",
+                "transform": "cummean"
+            },
+            {
+                "data": combined_max_time[tab],
+                "y_label": "Time of Max (s)",
+                "title_label": "Time of Max Value",
+                "filename_base": "TimeOfMax_Overlay"
+            },
+            {
+                "data": combined_time_to_baseline[tab],
+                "y_label": "Time to Baseline (s)",
+                "title_label": "Time to Baseline",
+                "filename_base": "TimeToBaseline_Overlay"
+            },
+            {
+                "data": combined_time_to_baseline[tab],
+                "y_label": "Cumulative Time To Baseline (s)",
+                "title_label": "Cumulative Time To Baseline",
+                "filename_base": "CumBaseline_Overlay",
+                "transform": "cumulative"
+            },
+            {
+                "data": combined_time_to_baseline[tab],
+                "y_label": "Cumulative Mean Time To Baseline (s)",
+                "title_label": "CumMean Time To Baseline",
+                "filename_base": "CumMeanBaseline_Overlay",
+                "transform": "cummean"
+            },
+            {
+                "data": combined_auc[tab],
+                "y_label": f"AUC ({time_window['start']}-{time_window['end']} s)",
+                "title_label": f"AUC ({time_window['start']}-{time_window['end']} s)",
+                "filename_base": f"AUC_{time_window['start']}_{time_window['end']}s_Overlay"
+            },
+            {
+                "data": combined_auc[tab],
+                "y_label": f"Cumulative AUC ({time_window['start']}-{time_window['end']} s)",
+                "title_label": f"Cumulative AUC ({time_window['start']}-{time_window['end']} s)",
+                "filename_base": f"CumAUC_{time_window['start']}_{time_window['end']}s_Overlay",
+                "transform": "cumulative"
+            },
+            {
+                "data": combined_auc[tab],
+                "y_label": f"Cumulative Mean AUC ({time_window['start']}-{time_window['end']} s)",
+                "title_label": f"CumMean AUC ({time_window['start']}-{time_window['end']} s)",
+                "filename_base": f"CumMeanAUC_{time_window['start']}_{time_window['end']}s_Overlay",
+                "transform": "cummean"
+            },
+            {
+                "data": combined_meanz[tab],
+                "y_label": f"Mean Z ({time_window['start']}-{time_window['end']} s)",
+                "title_label": f"Mean Z Window ({time_window['start']}-{time_window['end']} s)",
+                "filename_base": f"MeanZ_{time_window['start']}_{time_window['end']}s_Overlay"
+            }
+        ]
+
+        plot_available_groupings(combined_raw[tab], metric_specs, tab)
 
     # ------------------------------------------------------------
     # EXPORT COMBINED EXCEL
