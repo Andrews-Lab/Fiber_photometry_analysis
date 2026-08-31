@@ -4,6 +4,7 @@ import sys
 from Analysis_types.Whole_recording import extract_event_data_from_cols
 from Post_processing.FED3_post_processing import FED3_post_processing
 from Post_processing.Peri_events_post_processing import Peri_events_post_processing
+from Statistics.Statistics_GUI import statistics_menu
 
 def camera(value):
     dict1 = {'Camera 1':'Cam1', 'Camera 2':'Cam2'}
@@ -93,8 +94,9 @@ def choose_basic_TDT_options(inputs):
     layout += [[sg.T("")],[sg.Text("Choose the type of analysis.", size=(22,1)), 
                 sg.Combo(['Peri-events', 'FED3', 'Between events', 'Whole recording'],
                 key="Analysis",enable_events=True,default_value=default["Analysis"])]]
-    layout += [[sg.T("")], [sg.Button("Submit"), sg.Push(), 
-                sg.Button("Peri-events post-processing"), sg.Button("FED3 post-processing")]]
+    layout += [[sg.T("")], [sg.Button("Submit"), sg.Push(),
+                sg.Button("Peri-events post-processing"), sg.Button("FED3 post-processing"),
+                sg.Button("Statistics")]]
     window  = sg.Window('Photometry Analysis', layout)
     while True:
         event, values = window.read()
@@ -117,6 +119,8 @@ def choose_basic_TDT_options(inputs):
             Peri_events_post_processing()
         elif event == "FED3 post-processing":
             FED3_post_processing()
+        elif event == "Statistics":
+            statistics_menu()
     print('Import location is '+inputs['Import location'])
     print('Export location is '+inputs['Export location'])
     print('Setup is '+inputs['Setup'])
