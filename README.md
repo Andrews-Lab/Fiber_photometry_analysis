@@ -124,7 +124,7 @@ Read the [guide to using this fiber photometry GUI](How_to_use_Fiber_Photometry_
 
 ### Acknowledgements
 
-__Author:__ <br>
+__Authors:__ <br>
 [Harry Dempsey](https://github.com/H-Dempsey), [Taaseen Rahman](https://github.com/Taaseen-Rahman), [Vasili Drakopoulos](https://github.com/VasiliDrakopoulos) <br>
 
 __Credits:__ <br>
