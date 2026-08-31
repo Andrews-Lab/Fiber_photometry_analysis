@@ -1,5 +1,9 @@
 # TDT (Tucker-Davis Technologies) Fiber Photometry Analysis GUI 🐁
 
+Please cite (Drakopoulos, V., Reichenbach, A., Stark, R., Foldi, C. J., Jean-Richard-Dit-Bressel, P., & Andrews, Z. B. (2025). FiPhoPHA-A Fiber Photometry Python Package for Post Hoc Analysis. eNeuro, 12(8), ENEURO.0221-25.2025. https://doi.org/10.1523/ENEURO.0221-25.2025), as this work adapts https://github.com/VasiliDrakopoulos/fiphopha.
+
+This work also adapts https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/examples/FibPhoEpocAveraging/.
+
 ### Overview
 
 __TDT Fiber Photometry__
