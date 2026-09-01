@@ -1,6 +1,8 @@
-import PySimpleGUI as sg
+from pathlib import Path
+import subprocess
+import sys
 
-from Statistics.FED3_fiphopha import launch_gui
+import PySimpleGUI as sg
 
 
 def statistics_menu():
@@ -19,11 +21,10 @@ def statistics_menu():
         if event in (sg.WIN_CLOSED, "Close"):
             break
         if event == "FED3 FiPhoPHA":
-            window.hide()
-            try:
-                launch_gui()
-            finally:
-                window.un_hide()
+            # Run FiPhoPHA in its own process so PySimpleGUI's existing Tk root
+            # cannot interfere with FiPhoPHA's Tk variables or event loop.
+            script = Path(__file__).with_name("FED3_fiphopha.py")
+            subprocess.Popen([sys.executable, str(script)])
+            break
 
     window.close()
-
