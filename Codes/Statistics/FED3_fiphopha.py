@@ -975,29 +975,32 @@ class FED3FiPhoPHAApp:
         self.root.title("FED3 FiPhoPHA — Between-Group Analysis")
         self._set_initial_geometry()
 
-        self.file_var = tk.StringVar(value=initial_file or "")
-        self.output_var = tk.StringVar()
-        self.analysis_unit_var = tk.StringVar(value="Animal event means")
-        self.group_field_var = tk.StringVar(value="Genotype")
-        self.stratify_field_var = tk.StringVar(value="None")
-        self.trace_start_var = tk.StringVar()
-        self.trace_end_var = tk.StringVar()
-        self.baseline_start_var = tk.StringVar()
-        self.baseline_end_var = tk.StringVar(value="0")
-        self.comparison_start_var = tk.StringVar(value="0")
-        self.comparison_end_var = tk.StringVar()
-        self.downsample_factor_var = tk.StringVar(value="1")
-        self.confidence_var = tk.StringVar(value=str(DEFAULT_CONFIDENCE_PERCENT))
-        self.resamples_var = tk.StringVar(value=str(DEFAULT_RESAMPLES))
-        self.permutations_var = tk.StringVar(value=str(DEFAULT_PERMUTATIONS))
-        self.threshold_seconds_var = tk.StringVar(value=str(DEFAULT_THRESHOLD_SECONDS))
-        self.seed_var = tk.StringVar(value=str(DEFAULT_RANDOM_SEED))
-        self.detected_var = tk.StringVar(value="Load a FED3_FP_Combined workbook.")
-        self.threshold_preview_var = tk.StringVar(value="")
-        self.create_plots_var = tk.BooleanVar(value=True)
-        self.show_from_zero_var = tk.BooleanVar(value=True)
-        self.show_raw_significance_var = tk.BooleanVar(value=False)
-        self.save_svg_var = tk.BooleanVar(value=False)
+        # Explicit masters are essential when this window is launched from the
+        # Fiber Photometry PySimpleGUI application, which already owns a Tk root.
+        self.file_var = tk.StringVar(master=self.root, value=initial_file or "")
+        self.output_var = tk.StringVar(master=self.root)
+        self.analysis_unit_var = tk.StringVar(master=self.root, value="Animal event means")
+        self.group_field_var = tk.StringVar(master=self.root, value="Genotype")
+        self.stratify_field_var = tk.StringVar(master=self.root, value="None")
+        self.trace_start_var = tk.StringVar(master=self.root)
+        self.trace_end_var = tk.StringVar(master=self.root)
+        self.baseline_start_var = tk.StringVar(master=self.root)
+        self.baseline_end_var = tk.StringVar(master=self.root, value="0")
+        self.comparison_start_var = tk.StringVar(master=self.root, value="0")
+        self.comparison_end_var = tk.StringVar(master=self.root)
+        self.downsample_factor_var = tk.StringVar(master=self.root, value="1")
+        self.confidence_var = tk.StringVar(master=self.root, value=str(DEFAULT_CONFIDENCE_PERCENT))
+        self.resamples_var = tk.StringVar(master=self.root, value=str(DEFAULT_RESAMPLES))
+        self.permutations_var = tk.StringVar(master=self.root, value=str(DEFAULT_PERMUTATIONS))
+        self.threshold_seconds_var = tk.StringVar(master=self.root, value=str(DEFAULT_THRESHOLD_SECONDS))
+        self.seed_var = tk.StringVar(master=self.root, value=str(DEFAULT_RANDOM_SEED))
+        self.detected_var = tk.StringVar(master=self.root, value="Load a FED3_FP_Combined workbook.")
+        self.threshold_preview_var = tk.StringVar(master=self.root, value="")
+        self.threshold_warning_var = tk.StringVar(master=self.root, value="")
+        self.create_plots_var = tk.BooleanVar(master=self.root, value=True)
+        self.show_from_zero_var = tk.BooleanVar(master=self.root, value=True)
+        self.show_raw_significance_var = tk.BooleanVar(master=self.root, value=False)
+        self.save_svg_var = tk.BooleanVar(master=self.root, value=False)
         self.event_vars: dict[str, tk.BooleanVar] = {}
         self.metadata_fields: list[str] = []
         self.preview_dataset: EventDataset | None = None
@@ -1139,9 +1142,18 @@ class FED3FiPhoPHAApp:
             entry = ttk.Entry(time_frame, textvariable=variable, width=14)
             entry.grid(row=row, column=column + 1, sticky="w", padx=(6, 22), pady=4)
             entry.bind("<FocusOut>", lambda _event: self.update_threshold_preview())
+            entry.bind("<KeyRelease>", lambda _event: self.update_threshold_preview())
         ttk.Label(time_frame, textvariable=self.threshold_preview_var, wraplength=920).grid(
             row=3, column=0, columnspan=6, sticky="w", pady=(7, 0)
         )
+        tk.Label(
+            time_frame,
+            textvariable=self.threshold_warning_var,
+            foreground="#b00020",
+            justify="left",
+            anchor="w",
+            wraplength=920,
+        ).grid(row=4, column=0, columnspan=6, sticky="w", pady=(4, 0))
 
         stats_frame = ttk.LabelFrame(outer, text="4. Statistical settings", padding=10)
         stats_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
@@ -1249,7 +1261,7 @@ class FED3FiPhoPHAApp:
         self.event_vars = {}
         ttk.Label(self.events_container, text="Events:").grid(row=0, column=0, sticky="w")
         for index, event in enumerate(events, start=1):
-            variable = tk.BooleanVar(value=existing.get(event, True))
+            variable = tk.BooleanVar(master=self.root, value=existing.get(event, True))
             self.event_vars[event] = variable
             ttk.Checkbutton(
                 self.events_container,
@@ -1282,19 +1294,29 @@ class FED3FiPhoPHAApp:
 
             dt = sampling_interval(dataset.time)
             rate = 1.0 / dt
-            factor = suggest_downsample_factor(dataset.time)
-            self.downsample_factor_var.set(str(factor))
+            suggested_factor = suggest_downsample_factor(dataset.time)
+            # Preserve the source resolution by default. Downsampling is an
+            # explicit user choice because it also changes the shortest
+            # representable consecutive-significance duration.
+            self.downsample_factor_var.set("1")
+            if not self.threshold_seconds_var.get().strip():
+                self.threshold_seconds_var.set(str(DEFAULT_THRESHOLD_SECONDS))
             self.trace_start_var.set(f"{dataset.time.min():.6g}")
             self.trace_end_var.set(f"{dataset.time.max():.6g}")
             self.baseline_start_var.set(f"{dataset.time.min():.6g}")
-            self.baseline_end_var.set("0")
-            self.comparison_start_var.set("0")
+            if dataset.time.min() < 0 < dataset.time.max():
+                self.baseline_end_var.set("0")
+                self.comparison_start_var.set("0")
+            else:
+                self.baseline_end_var.set("")
+                self.comparison_start_var.set("")
             self.comparison_end_var.set(f"{dataset.time.max():.6g}")
             self.detected_var.set(
                 f"Detected {', '.join(events)}; {len(dataset.time)} time points from "
                 f"{dataset.time.min():.3f} to {dataset.time.max():.3f} s; "
-                f"sampling rate {rate:.3f} Hz. Suggested factor {factor} gives about "
-                f"{rate / factor:.3f} Hz. Metadata: {', '.join(self.metadata_fields)}."
+                f"sampling rate {rate:.3f} Hz. Default factor 1 retains {rate:.3f} Hz. "
+                f"A factor of {suggested_factor} would give about "
+                f"{rate / suggested_factor:.3f} Hz. Metadata: {', '.join(self.metadata_fields)}."
             )
             if not self.output_var.get():
                 self.output_var.set(str(path.with_name(path.stem + "_FiPhoPHA.xlsx")))
@@ -1389,15 +1411,40 @@ class FED3FiPhoPHAApp:
             factor = int(self.downsample_factor_var.get())
             threshold_seconds = float(self.threshold_seconds_var.get())
             downsampled = downsample_dataset(self.preview_dataset, factor)
+            original_interval = sampling_interval(self.preview_dataset.time)
+            downsampled_interval = sampling_interval(downsampled.time)
+            original_rate = 1.0 / original_interval
+            downsampled_rate = 1.0 / downsampled_interval
             points, effective = threshold_points_from_seconds(
                 downsampled.time, threshold_seconds
             )
             self.threshold_preview_var.set(
-                f"The requested {threshold_seconds:g} s threshold becomes {points} consecutive "
-                f"downsampled point(s), an effective duration of approximately {effective:.3f} s."
+                f"Source: {original_rate:.3f} Hz ({original_interval:.4f} s/sample). "
+                f"After factor {factor}: {downsampled_rate:.3f} Hz "
+                f"({downsampled_interval:.4f} s/sample). The requested {threshold_seconds:g} s "
+                f"threshold becomes {points} point(s), effective duration ≈ {effective:.3f} s."
             )
+            warnings = []
+            if threshold_seconds < downsampled_interval:
+                warnings.append(
+                    f"The requested {threshold_seconds:g} s threshold is shorter than one "
+                    f"downsampled sample ({downsampled_interval:.3f} s), so it cannot be "
+                    f"represented and becomes 1 point ≈ {effective:.3f} s."
+                )
+            if points <= 1:
+                warnings.append(
+                    "A one-point threshold does not remove isolated significant points; "
+                    "use less downsampling or a longer threshold if consecutive filtering is required."
+                )
+            elif threshold_seconds > 0 and abs(effective - threshold_seconds) / threshold_seconds > 0.25:
+                warnings.append(
+                    f"Temporal rounding changes the requested duration by more than 25% "
+                    f"({threshold_seconds:g} s requested; {effective:.3f} s effective)."
+                )
+            self.threshold_warning_var.set("Warning: " + " ".join(warnings) if warnings else "")
         except Exception as error:
             self.threshold_preview_var.set(f"Threshold preview unavailable: {error}")
+            self.threshold_warning_var.set("")
 
     def _settings_from_window(self) -> AnalysisSettings:
         confidence = float(self.confidence_var.get()) / 100.0
