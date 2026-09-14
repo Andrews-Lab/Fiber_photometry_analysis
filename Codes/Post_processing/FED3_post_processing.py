@@ -530,13 +530,92 @@ def FED3_post_processing():
         return
 
     # ------------------------------------------------------------
-    # PLOT, EVENT-PROGRESSION, AND CHRONOLOGICAL OPTIONS
+    # OUTPUT AND PLOT OPTIONS
     # ------------------------------------------------------------
     plot_options_window = tk.Toplevel(root)
-    plot_options_window.title("Event-Progression and Chronological Plot Options")
+    plot_options_window.title("FED3 Output and Plot Options")
+    plot_options_window.rowconfigure(0, weight=1)
+    plot_options_window.columnconfigure(0, weight=1)
+
+    plot_options_canvas = tk.Canvas(
+        plot_options_window,
+        highlightthickness=0
+    )
+    plot_options_scrollbar = tk.Scrollbar(
+        plot_options_window,
+        orient="vertical",
+        command=plot_options_canvas.yview
+    )
+    plot_options_canvas.configure(
+        yscrollcommand=plot_options_scrollbar.set
+    )
+    plot_options_canvas.grid(row=0, column=0, sticky="nsew")
+    plot_options_scrollbar.grid(row=0, column=1, sticky="ns")
+
+    plot_options_content = tk.Frame(plot_options_canvas)
+    plot_options_canvas_window = plot_options_canvas.create_window(
+        (0, 0),
+        window=plot_options_content,
+        anchor="nw"
+    )
+
+    def update_plot_options_scrollregion(_event=None):
+        plot_options_canvas.configure(
+            scrollregion=plot_options_canvas.bbox("all")
+        )
+
+    def resize_plot_options_content(event):
+        plot_options_canvas.itemconfigure(
+            plot_options_canvas_window,
+            width=event.width
+        )
+
+    def scroll_plot_options(event):
+        if getattr(event, "num", None) == 4:
+            scroll_units = -1
+        elif getattr(event, "num", None) == 5:
+            scroll_units = 1
+        else:
+            delta = getattr(event, "delta", 0)
+            if delta == 0:
+                return
+            if sys.platform == "darwin":
+                scroll_units = -1 if delta > 0 else 1
+            else:
+                scroll_units = int(-delta / 120)
+                if scroll_units == 0:
+                    scroll_units = -1 if delta > 0 else 1
+
+        plot_options_canvas.yview_scroll(scroll_units, "units")
+        return "break"
+
+    plot_options_content.bind(
+        "<Configure>",
+        update_plot_options_scrollregion
+    )
+    plot_options_canvas.bind(
+        "<Configure>",
+        resize_plot_options_content
+    )
+    plot_options_window.bind("<MouseWheel>", scroll_plot_options)
+    plot_options_window.bind("<Button-4>", scroll_plot_options)
+    plot_options_window.bind("<Button-5>", scroll_plot_options)
+
+    tk.Label(
+        plot_options_content,
+        text=(
+            "The FED3_FP_Combined workbook is always created. "
+            "Select any optional figures you would also like to generate."
+        ),
+        fg="dark green",
+        justify="left",
+        wraplength=520
+    ).grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
 
     checkbox_variables = {}
     checkbox_options = [
+        "Create per-mouse mean ± SEM plots",
+        "Create grouped overlay and metric plots",
         "Create individual 2D event-progression plots",
         "Create individual 3D event-progression plots",
         "Create group 3D comparison plots (shared axes)",
@@ -550,11 +629,11 @@ def FED3_post_processing():
             value=False
         )
         tk.Checkbutton(
-            plot_options_window,
+            plot_options_content,
             text=label,
             variable=variable
         ).grid(
-            row=row_number,
+            row=row_number + 1,
             column=0,
             columnspan=2,
             sticky="w",
@@ -572,12 +651,12 @@ def FED3_post_processing():
 
     for row_number, (label, default_value) in enumerate(
         general_option_defaults,
-        start=5
+        start=8
     ):
-        tk.Label(plot_options_window, text=label).grid(
+        tk.Label(plot_options_content, text=label).grid(
             row=row_number, column=0, sticky="e", padx=8, pady=4
         )
-        entry = tk.Entry(plot_options_window, width=10)
+        entry = tk.Entry(plot_options_content, width=10)
         entry.insert(0, default_value)
         entry.grid(row=row_number, column=1, sticky="w", padx=8, pady=4)
         option_entries[label] = entry
@@ -586,27 +665,27 @@ def FED3_post_processing():
         master=plot_options_window,
         value="Use full available range"
     )
-    tk.Label(plot_options_window, text="3D time range").grid(
-        row=8, column=0, sticky="e", padx=8, pady=4
+    tk.Label(plot_options_content, text="3D time range").grid(
+        row=11, column=0, sticky="e", padx=8, pady=4
     )
     tk.OptionMenu(
-        plot_options_window,
+        plot_options_content,
         time_range_mode,
         "Use full available range",
         "Custom range"
-    ).grid(row=8, column=1, sticky="w", padx=8, pady=4)
+    ).grid(row=11, column=1, sticky="w", padx=8, pady=4)
 
-    tk.Label(plot_options_window, text="3D start time (s)").grid(
-        row=9, column=0, sticky="e", padx=8, pady=4
+    tk.Label(plot_options_content, text="3D start time (s)").grid(
+        row=12, column=0, sticky="e", padx=8, pady=4
     )
-    custom_start_entry = tk.Entry(plot_options_window, width=10, state="disabled")
-    custom_start_entry.grid(row=9, column=1, sticky="w", padx=8, pady=4)
+    custom_start_entry = tk.Entry(plot_options_content, width=10, state="disabled")
+    custom_start_entry.grid(row=12, column=1, sticky="w", padx=8, pady=4)
 
-    tk.Label(plot_options_window, text="3D end time (s)").grid(
-        row=10, column=0, sticky="e", padx=8, pady=4
+    tk.Label(plot_options_content, text="3D end time (s)").grid(
+        row=13, column=0, sticky="e", padx=8, pady=4
     )
-    custom_end_entry = tk.Entry(plot_options_window, width=10, state="disabled")
-    custom_end_entry.grid(row=10, column=1, sticky="w", padx=8, pady=4)
+    custom_end_entry = tk.Entry(plot_options_content, width=10, state="disabled")
+    custom_end_entry.grid(row=13, column=1, sticky="w", padx=8, pady=4)
 
     viewing_option_defaults = [
         ("Vertical viewing angle", "25"),
@@ -614,12 +693,12 @@ def FED3_post_processing():
     ]
     for row_number, (label, default_value) in enumerate(
         viewing_option_defaults,
-        start=11
+        start=14
     ):
-        tk.Label(plot_options_window, text=label).grid(
+        tk.Label(plot_options_content, text=label).grid(
             row=row_number, column=0, sticky="e", padx=8, pady=4
         )
-        entry = tk.Entry(plot_options_window, width=10)
+        entry = tk.Entry(plot_options_content, width=10)
         entry.insert(0, default_value)
         entry.grid(row=row_number, column=1, sticky="w", padx=8, pady=4)
         option_entries[label] = entry
@@ -675,6 +754,10 @@ def FED3_post_processing():
                 messagebox.showerror("Error", "Events per trace page must be at least 1.")
                 return
             progression_options.update({
+                "per_mouse": checkbox_variables[
+                    "Create per-mouse mean ± SEM plots"].get(),
+                "grouped_summary": checkbox_variables[
+                    "Create grouped overlay and metric plots"].get(),
                 "trace_page_events": trace_page_events,
                 "trace_wide_png": trace_format_vars["wide_png"].get(),
                 "trace_wide_svg": trace_format_vars["wide_svg"].get(),
@@ -716,8 +799,8 @@ def FED3_post_processing():
     # CHRONOLOGICAL PLOT FORMAT AND COLOUR OPTIONS
     # ------------------------------------------------------------
     chronological_colors = dict(CHRONO_COLORS)
-    event_color_frame = tk.LabelFrame(plot_options_window, text="Chronological event colours")
-    event_color_frame.grid(row=13, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
+    event_color_frame = tk.LabelFrame(plot_options_content, text="Chronological event colours")
+    event_color_frame.grid(row=16, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
     event_color_buttons = []
     for column, event in enumerate(CHRONO_COLORS):
         button = tk.Button(event_color_frame, text=event, bg=chronological_colors[event], width=10)
@@ -766,10 +849,30 @@ def FED3_post_processing():
     update_event_color_controls()
 
     tk.Button(
-        plot_options_window,
+        plot_options_content,
         text="Confirm",
         command=confirm_plot_options
-    ).grid(row=14, column=0, columnspan=2, pady=10)
+    ).grid(row=17, column=0, columnspan=2, pady=10)
+
+    plot_options_window.update_idletasks()
+    screen_width = plot_options_window.winfo_screenwidth()
+    screen_height = plot_options_window.winfo_screenheight()
+    maximum_width = max(360, screen_width - 80)
+    maximum_height = max(300, screen_height - 120)
+    requested_width = plot_options_content.winfo_reqwidth() + \
+        plot_options_scrollbar.winfo_reqwidth() + 4
+    requested_height = plot_options_content.winfo_reqheight() + 4
+    window_width = min(requested_width, maximum_width)
+    window_height = min(requested_height, maximum_height)
+    window_x = max(0, (screen_width - window_width) // 2)
+    window_y = max(0, (screen_height - window_height) // 2)
+    plot_options_window.geometry(
+        f"{window_width}x{window_height}+{window_x}+{window_y}"
+    )
+    plot_options_window.minsize(
+        min(360, window_width),
+        min(300, window_height)
+    )
 
     root.wait_window(plot_options_window)
 
@@ -873,10 +976,19 @@ def FED3_post_processing():
         "sex": build_default_color_map(sex_values)
     }
 
-    use_custom_colors = messagebox.askyesno(
-        "Plot Colours",
-        "Would you like to choose custom colours for Sex and Genotype groups?"
+    group_colours_used = (
+        progression_options["grouped_summary"]
+        or progression_options["group_3d"]
+        or progression_options["chronological_sequence"]
+        or progression_options["chronological_heatmaps"]
     )
+
+    use_custom_colors = False
+    if group_colours_used:
+        use_custom_colors = messagebox.askyesno(
+            "Plot Colours",
+            "Would you like to choose custom colours for Sex and Genotype groups?"
+        )
 
     if use_custom_colors:
         color_specs = [
@@ -893,12 +1005,24 @@ def FED3_post_processing():
                 if selected_color:
                     plot_color_maps[map_name][group_value] = selected_color
 
-    show_plots = messagebox.askyesno(
-        "Plot Display",
-        "Display plots in matplotlib windows?\n\n"
-        "Yes = show plots\n"
-        "No = only save images"
-    )
+    any_plots_requested = any([
+        progression_options["per_mouse"],
+        progression_options["grouped_summary"],
+        progression_options["individual_2d"],
+        progression_options["individual_3d"],
+        progression_options["group_3d"],
+        progression_options["chronological_sequence"],
+        progression_options["chronological_heatmaps"]
+    ])
+
+    show_plots = False
+    if any_plots_requested:
+        show_plots = messagebox.askyesno(
+            "Plot Display",
+            "Display plots in matplotlib windows?\n\n"
+            "Yes = show plots\n"
+            "No = only save images"
+        )
 
     sex_line_styles = {}
     available_line_styles = ["-", "--", ":", "-."]
@@ -1984,41 +2108,42 @@ def FED3_post_processing():
             print(f"No data found for {tab}, skipping.")
             continue
         
-        n_mice = len(combined_raw[tab])
+        if progression_options["per_mouse"]:
+            n_mice = len(combined_raw[tab])
 
-        fig, axes = plt.subplots(n_mice, 1, figsize=(8, 2*n_mice), sharex=True)
+            fig, axes = plt.subplots(n_mice, 1, figsize=(8, 2*n_mice), sharex=True)
 
-        if n_mice == 1:
-            axes = [axes]
+            if n_mice == 1:
+                axes = [axes]
 
-        for ax, (mouse, geno, sex, trials) in zip(axes, combined_raw[tab]):
+            for ax, (mouse, geno, sex, trials) in zip(axes, combined_raw[tab]):
 
-            mean_trace = np.nanmean(trials, axis=1)
-            sem_trace = np.nanstd(trials, axis=1) / np.sqrt(trials.shape[1])
+                mean_trace = np.nanmean(trials, axis=1)
+                sem_trace = np.nanstd(trials, axis=1) / np.sqrt(trials.shape[1])
 
-            ax.plot(reference_time, mean_trace, color="black", linewidth=2)
+                ax.plot(reference_time, mean_trace, color="black", linewidth=2)
 
-            ax.fill_between(
-                reference_time,
-                mean_trace - sem_trace,
-                mean_trace + sem_trace,
-                alpha=0.3
+                ax.fill_between(
+                    reference_time,
+                    mean_trace - sem_trace,
+                    mean_trace + sem_trace,
+                    alpha=0.3
+                )
+
+                ax.axvline(0, linestyle="--")
+                ax.set_xlim(reference_time.min(), reference_time.max())
+
+                ax.set_ylabel(mouse)
+
+            axes[-1].set_xlabel("Time (s)")
+            fig.suptitle(f"{tab} — Per Mouse Mean ± SEM")
+
+            plt.tight_layout()
+            finish_plot(
+                tab,
+                "Per_Mouse",
+                f"{safe_filename_value(tab)}_PerMouse.png"
             )
-
-            ax.axvline(0, linestyle="--")
-            ax.set_xlim(reference_time.min(), reference_time.max())
-
-            ax.set_ylabel(mouse)
-
-        axes[-1].set_xlabel("Time (s)")
-        fig.suptitle(f"{tab} — Per Mouse Mean ± SEM")
-
-        plt.tight_layout()
-        finish_plot(
-            tab,
-            "Per_Mouse",
-            f"{safe_filename_value(tab)}_PerMouse.png"
-        )
 
         if (
             progression_options["individual_2d"]
@@ -2109,7 +2234,9 @@ def FED3_post_processing():
             }
         ]
 
-        plot_available_groupings(combined_raw[tab], metric_specs, tab)
+        if progression_options["grouped_summary"]:
+            plot_available_groupings(combined_raw[tab], metric_specs, tab)
+
         plot_available_group_3d(combined_raw[tab], tab)
 
     # ------------------------------------------------------------
@@ -2149,6 +2276,8 @@ def FED3_post_processing():
         ]
 
         progression_parameter_labels = [
+            ("Per-mouse mean ± SEM plots", "Yes" if progression_options["per_mouse"] else "No"),
+            ("Grouped overlay and metric plots", "Yes" if progression_options["grouped_summary"] else "No"),
             ("Chronological wide PNG", "Yes" if progression_options["trace_wide_png"] else "No"),
             ("Chronological zoomable SVG", "Yes" if progression_options["trace_wide_svg"] else "No"),
             ("Chronological paginated PNGs", "Yes" if progression_options["trace_paginated_png"] else "No"),
