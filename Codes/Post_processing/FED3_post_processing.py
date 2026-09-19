@@ -18,6 +18,16 @@ CHRONO_COLORS = {'Left': '#0072B2', 'Right': '#E69F00',
 
 
 # ------------------------------------------------------------
+# CLEAN METADATA VALUES
+# ------------------------------------------------------------
+def clean_metadata_value(value):
+    """Match FED3 Analyzer whitespace cleaning for metadata text."""
+    if pd.isna(value):
+        return ""
+    return " ".join(str(value).split())
+
+
+# ------------------------------------------------------------
 # READ CHRONOLOGICAL EVENT DATA
 # ------------------------------------------------------------
 def _chrono_read_frame(df, selected):
@@ -481,7 +491,121 @@ def FED3_post_processing():
         root.destroy()
         return
 
+    # ------------------------------------------------------------
+    # STANDARDIZE AND VALIDATE METADATA
+    # ------------------------------------------------------------
+    original_columns = list(metadata_df.columns)
+    cleaned_columns = [
+        clean_metadata_value(column)
+        for column in original_columns
+    ]
+
+    if any(column == "" for column in cleaned_columns):
+        messagebox.showerror(
+            "Metadata Error",
+            "Metadata header titles cannot be blank."
+        )
+        root.destroy()
+        return
+
+    duplicated_headers = sorted({
+        column
+        for column in cleaned_columns
+        if cleaned_columns.count(column) > 1
+    })
+    if duplicated_headers:
+        messagebox.showerror(
+            "Metadata Error",
+            "Metadata header titles must remain unique after whitespace "
+            "cleaning:\n\n" + "\n".join(duplicated_headers)
+        )
+        root.destroy()
+        return
+
+    metadata_df.columns = cleaned_columns
+
+    for metadata_column in metadata_df.columns:
+        metadata_df[metadata_column] = metadata_df[metadata_column].map(
+            clean_metadata_value
+        )
+
+    if "Filename" not in metadata_df.columns:
+        messagebox.showerror(
+            "Metadata Error",
+            "The metadata file must contain a Filename column."
+        )
+        root.destroy()
+        return
+
+    selected_filename_lookup = {}
+    for selected_filename in file_map:
+        cleaned_filename = clean_metadata_value(selected_filename)
+        if cleaned_filename in selected_filename_lookup:
+            messagebox.showerror(
+                "Filename Error",
+                "Two selected files become identical after whitespace "
+                f"cleaning:\n\n{cleaned_filename}"
+            )
+            root.destroy()
+            return
+        selected_filename_lookup[cleaned_filename] = selected_filename
+
+    duplicated_filenames = metadata_df["Filename"].duplicated(keep=False)
+    if duplicated_filenames.any():
+        duplicate_names = sorted(
+            metadata_df.loc[duplicated_filenames, "Filename"].unique()
+        )
+        messagebox.showerror(
+            "Metadata Error",
+            "The metadata file contains duplicate filenames after whitespace "
+            "cleaning:\n\n" + "\n".join(duplicate_names)
+        )
+        root.destroy()
+        return
+
+    unmatched_filenames = sorted(
+        filename
+        for filename in metadata_df["Filename"]
+        if filename not in selected_filename_lookup
+    )
+    if unmatched_filenames:
+        messagebox.showerror(
+            "Metadata Error",
+            "These metadata filenames do not match the selected data files "
+            "after whitespace cleaning:\n\n"
+            + "\n".join(unmatched_filenames)
+        )
+        root.destroy()
+        return
+
+    missing_metadata_filenames = sorted(
+        filename
+        for filename in selected_filename_lookup
+        if filename not in set(metadata_df["Filename"])
+    )
+    if missing_metadata_filenames:
+        messagebox.showerror(
+            "Metadata Error",
+            "These selected data files are missing from the metadata file:\n\n"
+            + "\n".join(missing_metadata_filenames)
+        )
+        root.destroy()
+        return
+
+    metadata_df["Filename"] = metadata_df["Filename"].map(
+        selected_filename_lookup
+    )
+
     meta_columns = [col for col in metadata_df.columns if col != "Filename"]
+
+    if len(meta_columns) < 3:
+        messagebox.showerror(
+            "Metadata Error",
+            "The metadata file must contain at least three metadata columns "
+            "in addition to Filename."
+        )
+        root.destroy()
+        return
 
     mouse_id_col = meta_columns[0]
     sex_col = meta_columns[1]
@@ -616,6 +740,7 @@ def FED3_post_processing():
     checkbox_options = [
         "Create per-mouse mean ± SEM plots",
         "Create grouped overlay and metric plots",
+        "Create event-summary bar plots",
         "Create individual 2D event-progression plots",
         "Create individual 3D event-progression plots",
         "Create group 3D comparison plots (shared axes)",
@@ -642,6 +767,51 @@ def FED3_post_processing():
         )
         checkbox_variables[label] = variable
 
+    # ------------------------------------------------------------
+    # SELECT EVENT SUMMARY METRICS
+    # ------------------------------------------------------------
+    summary_metric_options = [
+        ("event_count", "Event count"),
+        ("peak_mean", "Peak mean"),
+        ("auc_mean", "AUC mean"),
+        ("window_meanz", "Window mean Z-score"),
+        ("peak_time_mean", "Peak-time mean"),
+        ("time_to_baseline_mean", "Time-to-baseline mean")
+    ]
+    summary_metric_variables = {}
+    summary_metric_frame = tk.LabelFrame(
+        plot_options_content,
+        text="Event Summary metrics"
+    )
+    summary_metric_frame.grid(
+        row=9,
+        column=0,
+        columnspan=2,
+        sticky="ew",
+        padx=10,
+        pady=6
+    )
+
+    for metric_index, (metric_key, metric_label) in enumerate(
+        summary_metric_options
+    ):
+        metric_variable = tk.BooleanVar(
+            master=plot_options_window,
+            value=True
+        )
+        summary_metric_variables[metric_key] = metric_variable
+        tk.Checkbutton(
+            summary_metric_frame,
+            text=metric_label,
+            variable=metric_variable
+        ).grid(
+            row=metric_index // 2,
+            column=metric_index % 2,
+            sticky="w",
+            padx=8,
+            pady=3
+        )
+
     option_entries = {}
     general_option_defaults = [
         ("Events per group", "1"),
@@ -651,7 +821,7 @@ def FED3_post_processing():
 
     for row_number, (label, default_value) in enumerate(
         general_option_defaults,
-        start=8
+        start=10
     ):
         tk.Label(plot_options_content, text=label).grid(
             row=row_number, column=0, sticky="e", padx=8, pady=4
@@ -666,26 +836,26 @@ def FED3_post_processing():
         value="Use full available range"
     )
     tk.Label(plot_options_content, text="3D time range").grid(
-        row=11, column=0, sticky="e", padx=8, pady=4
+        row=13, column=0, sticky="e", padx=8, pady=4
     )
     tk.OptionMenu(
         plot_options_content,
         time_range_mode,
         "Use full available range",
         "Custom range"
-    ).grid(row=11, column=1, sticky="w", padx=8, pady=4)
+    ).grid(row=13, column=1, sticky="w", padx=8, pady=4)
 
     tk.Label(plot_options_content, text="3D start time (s)").grid(
-        row=12, column=0, sticky="e", padx=8, pady=4
+        row=14, column=0, sticky="e", padx=8, pady=4
     )
     custom_start_entry = tk.Entry(plot_options_content, width=10, state="disabled")
-    custom_start_entry.grid(row=12, column=1, sticky="w", padx=8, pady=4)
+    custom_start_entry.grid(row=14, column=1, sticky="w", padx=8, pady=4)
 
     tk.Label(plot_options_content, text="3D end time (s)").grid(
-        row=13, column=0, sticky="e", padx=8, pady=4
+        row=15, column=0, sticky="e", padx=8, pady=4
     )
     custom_end_entry = tk.Entry(plot_options_content, width=10, state="disabled")
-    custom_end_entry.grid(row=13, column=1, sticky="w", padx=8, pady=4)
+    custom_end_entry.grid(row=15, column=1, sticky="w", padx=8, pady=4)
 
     viewing_option_defaults = [
         ("Vertical viewing angle", "25"),
@@ -693,7 +863,7 @@ def FED3_post_processing():
     ]
     for row_number, (label, default_value) in enumerate(
         viewing_option_defaults,
-        start=14
+        start=16
     ):
         tk.Label(plot_options_content, text=label).grid(
             row=row_number, column=0, sticky="e", padx=8, pady=4
@@ -753,11 +923,28 @@ def FED3_post_processing():
             if trace_page_events < 1:
                 messagebox.showerror("Error", "Events per trace page must be at least 1.")
                 return
+            selected_summary_metrics = [
+                metric_key
+                for metric_key, variable in summary_metric_variables.items()
+                if variable.get()
+            ]
+            if (
+                checkbox_variables["Create event-summary bar plots"].get()
+                and not selected_summary_metrics
+            ):
+                messagebox.showerror(
+                    "Error",
+                    "Select at least one Event Summary metric for bar plots."
+                )
+                return
             progression_options.update({
                 "per_mouse": checkbox_variables[
                     "Create per-mouse mean ± SEM plots"].get(),
                 "grouped_summary": checkbox_variables[
                     "Create grouped overlay and metric plots"].get(),
+                "summary_bars": checkbox_variables[
+                    "Create event-summary bar plots"].get(),
+                "summary_metrics": selected_summary_metrics,
                 "trace_page_events": trace_page_events,
                 "trace_wide_png": trace_format_vars["wide_png"].get(),
                 "trace_wide_svg": trace_format_vars["wide_svg"].get(),
@@ -800,7 +987,7 @@ def FED3_post_processing():
     # ------------------------------------------------------------
     chronological_colors = dict(CHRONO_COLORS)
     event_color_frame = tk.LabelFrame(plot_options_content, text="Chronological event colours")
-    event_color_frame.grid(row=16, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
+    event_color_frame.grid(row=18, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
     event_color_buttons = []
     for column, event in enumerate(CHRONO_COLORS):
         button = tk.Button(event_color_frame, text=event, bg=chronological_colors[event], width=10)
@@ -852,7 +1039,7 @@ def FED3_post_processing():
         plot_options_content,
         text="Confirm",
         command=confirm_plot_options
-    ).grid(row=17, column=0, columnspan=2, pady=10)
+    ).grid(row=19, column=0, columnspan=2, pady=10)
 
     plot_options_window.update_idletasks()
     screen_width = plot_options_window.winfo_screenwidth()
@@ -978,6 +1165,7 @@ def FED3_post_processing():
 
     group_colours_used = (
         progression_options["grouped_summary"]
+        or progression_options["summary_bars"]
         or progression_options["group_3d"]
         or progression_options["chronological_sequence"]
         or progression_options["chronological_heatmaps"]
@@ -1008,6 +1196,7 @@ def FED3_post_processing():
     any_plots_requested = any([
         progression_options["per_mouse"],
         progression_options["grouped_summary"],
+        progression_options["summary_bars"],
         progression_options["individual_2d"],
         progression_options["individual_3d"],
         progression_options["group_3d"],
@@ -1928,6 +2117,215 @@ def FED3_post_processing():
             )
 
     # ------------------------------------------------------------
+    # EVENT SUMMARY BAR PLOTS
+    # ------------------------------------------------------------
+    def plot_event_summary_bar(
+        summary_data,
+        tab,
+        metric_key,
+        metric_label,
+        grouping_columns,
+        plot_folder,
+        filename_suffix,
+        title_suffix
+    ):
+        value_column = f"{tab} {metric_label}"
+        required_columns = grouping_columns + [value_column]
+        if any(column not in summary_data.columns for column in required_columns):
+            return
+
+        plot_data = summary_data[required_columns].copy()
+        plot_data[value_column] = pd.to_numeric(
+            plot_data[value_column],
+            errors="coerce"
+        )
+        plot_data = plot_data.dropna(subset=[value_column])
+        if plot_data.empty:
+            return
+
+        for column in grouping_columns:
+            plot_data[column] = plot_data[column].apply(clean_group_value)
+
+        plot_data["_Summary Group"] = plot_data[grouping_columns].apply(
+            lambda values: " | ".join(str(value) for value in values),
+            axis=1
+        )
+        group_names = sorted(plot_data["_Summary Group"].unique())
+        if not group_names:
+            return
+
+        figure, axis = plt.subplots(
+            figsize=(max(6, 1.4 * len(group_names)), 6)
+        )
+
+        for group_index, group_name in enumerate(group_names):
+            group_rows = plot_data[
+                plot_data["_Summary Group"] == group_name
+            ]
+            animal_values = group_rows[value_column].to_numpy(dtype=float)
+            group_mean = float(np.mean(animal_values))
+            group_sem = (
+                float(np.std(animal_values, ddof=1) / np.sqrt(len(animal_values)))
+                if len(animal_values) > 1
+                else 0.0
+            )
+
+            first_row = group_rows.iloc[0]
+            if group_column in grouping_columns:
+                bar_color = plot_color_maps["genotype"].get(
+                    clean_group_value(first_row[group_column])
+                )
+            else:
+                bar_color = plot_color_maps["sex"].get(
+                    clean_group_value(first_row[sex_col])
+                )
+            if bar_color is None:
+                bar_color = to_hex(
+                    plt.get_cmap("tab10")(group_index % 10)
+                )
+
+            axis.bar(
+                group_index,
+                group_mean,
+                yerr=group_sem,
+                color=bar_color,
+                alpha=0.65,
+                edgecolor="black",
+                linewidth=1,
+                capsize=5,
+                zorder=1
+            )
+
+            point_offsets = (
+                np.linspace(-0.10, 0.10, len(animal_values))
+                if len(animal_values) > 1
+                else np.array([0.0])
+            )
+            axis.scatter(
+                group_index + point_offsets,
+                animal_values,
+                color=bar_color,
+                edgecolor="black",
+                linewidth=0.5,
+                s=38,
+                zorder=2
+            )
+
+        y_axis_labels = {
+            "event_count": "Number of valid events",
+            "peak_mean": "Mean event peak Z-score",
+            "auc_mean": "Mean event AUC",
+            "window_meanz": "Mean event Z-score",
+            "peak_time_mean": "Mean peak time (s)",
+            "time_to_baseline_mean": "Mean time to baseline (s)"
+        }
+        axis.set_xticks(np.arange(len(group_names)))
+        axis.set_xticklabels(group_names, rotation=25, ha="right")
+        axis.set_ylabel(y_axis_labels[metric_key])
+        axis.set_title(f"{tab} {metric_label} by {title_suffix}")
+        axis.spines["top"].set_visible(False)
+        axis.spines["right"].set_visible(False)
+        axis.grid(axis="y", alpha=0.2)
+        figure.tight_layout()
+
+        finish_figure(
+            figure,
+            tab,
+            plot_folder,
+            (
+                f"{safe_filename_value(tab)}_{metric_key}_"
+                f"{filename_suffix}.png"
+            )
+        )
+
+    def plot_event_summary_bars(event_summary):
+        for tab in selected_tabs:
+            for metric_key in progression_options["summary_metrics"]:
+                metric_label = summary_metric_labels[metric_key]
+
+                plot_event_summary_bar(
+                    event_summary,
+                    tab,
+                    metric_key,
+                    metric_label,
+                    [group_column],
+                    group_column,
+                    f"by_{safe_filename_value(group_column)}",
+                    group_column
+                )
+                plot_event_summary_bar(
+                    event_summary,
+                    tab,
+                    metric_key,
+                    metric_label,
+                    [sex_col],
+                    sex_col,
+                    f"by_{safe_filename_value(sex_col)}",
+                    sex_col
+                )
+                plot_event_summary_bar(
+                    event_summary,
+                    tab,
+                    metric_key,
+                    metric_label,
+                    [sex_col, group_column],
+                    f"{sex_col}_x_{group_column}",
+                    (
+                        f"by_{safe_filename_value(sex_col)}_"
+                        f"{safe_filename_value(group_column)}"
+                    ),
+                    f"{sex_col} x {group_column}"
+                )
+
+                for sex_value in sorted(
+                    event_summary[sex_col].dropna().unique(),
+                    key=str
+                ):
+                    sex_subset = event_summary[
+                        event_summary[sex_col] == sex_value
+                    ]
+                    if sex_subset[group_column].dropna().nunique() <= 1:
+                        continue
+                    plot_event_summary_bar(
+                        sex_subset,
+                        tab,
+                        metric_key,
+                        metric_label,
+                        [group_column],
+                        "Subgroup_Comparisons",
+                        (
+                            f"{safe_filename_value(sex_col)}_"
+                            f"{safe_filename_value(sex_value)}_by_"
+                            f"{safe_filename_value(group_column)}"
+                        ),
+                        f"{group_column}, {sex_col}: {sex_value}"
+                    )
+
+                for genotype_value in sorted(
+                    event_summary[group_column].dropna().unique(),
+                    key=str
+                ):
+                    genotype_subset = event_summary[
+                        event_summary[group_column] == genotype_value
+                    ]
+                    if genotype_subset[sex_col].dropna().nunique() <= 1:
+                        continue
+                    plot_event_summary_bar(
+                        genotype_subset,
+                        tab,
+                        metric_key,
+                        metric_label,
+                        [sex_col],
+                        "Subgroup_Comparisons",
+                        (
+                            f"{safe_filename_value(group_column)}_"
+                            f"{safe_filename_value(genotype_value)}_by_"
+                            f"{safe_filename_value(sex_col)}"
+                        ),
+                        f"{sex_col}, {group_column}: {genotype_value}"
+                    )
+
+    # ------------------------------------------------------------
     # STORAGE
     # ------------------------------------------------------------
     combined_raw = {tab: [] for tab in selected_tabs}
@@ -1939,6 +2337,34 @@ def FED3_post_processing():
 
     combined_auc = {tab: [] for tab in selected_tabs}
     combined_meanz = {tab: [] for tab in selected_tabs}
+
+    event_summary_rows = {}
+    for _, metadata_row in metadata_df.iterrows():
+        filename = metadata_row["Filename"]
+        if filename not in file_map:
+            continue
+        event_summary_rows[filename] = {
+            "Filename": filename,
+            mouse_id_col: str(metadata_row[mouse_id_col]),
+            sex_col: metadata_row[sex_col],
+            group_column: metadata_row[group_column]
+        }
+
+    summary_metric_labels = {
+        "event_count": "Event Count",
+        "peak_mean": "Peak Mean",
+        "auc_mean": "AUC Mean",
+        "window_meanz": "Window Mean Z-score",
+        "peak_time_mean": "Peak-time Mean",
+        "time_to_baseline_mean": "Time-to-baseline Mean"
+    }
+
+    def mean_of_valid_events(values):
+        numeric_values = np.asarray(values, dtype=float)
+        finite_values = numeric_values[np.isfinite(numeric_values)]
+        if len(finite_values) == 0:
+            return np.nan
+        return float(np.mean(finite_values))
 
     reference_time = None
 
@@ -2100,6 +2526,26 @@ def FED3_post_processing():
             combined_auc[tab].append((mouse, genotype, sex, auc_vals))
             combined_meanz[tab].append((mouse, genotype, sex, meanz_vals))
 
+            # ------------------------------------------------------------
+            # CALCULATE PER-ANIMAL EVENT SUMMARY MEANS
+            # ------------------------------------------------------------
+            summary_values = {
+                "event_count": int(np.sum(
+                    np.any(np.isfinite(trial_matrix), axis=0)
+                )),
+                "peak_mean": mean_of_valid_events(max_vals),
+                "auc_mean": mean_of_valid_events(auc_vals),
+                "window_meanz": mean_of_valid_events(meanz_vals),
+                "peak_time_mean": mean_of_valid_events(max_time_vals),
+                "time_to_baseline_mean": mean_of_valid_events(baseline_vals)
+            }
+            summary_row = event_summary_rows[row["Filename"]]
+            for metric_key in progression_options["summary_metrics"]:
+                summary_column = (
+                    f"{tab} {summary_metric_labels[metric_key]}"
+                )
+                summary_row[summary_column] = summary_values[metric_key]
+
 
         # ------------------------------------------------------------
         # STACKED PER-MOUSE MEAN ± SEM PLOT
@@ -2240,6 +2686,35 @@ def FED3_post_processing():
         plot_available_group_3d(combined_raw[tab], tab)
 
     # ------------------------------------------------------------
+    # BUILD EVENT SUMMARY TABLE
+    # ------------------------------------------------------------
+    event_summary_columns = [
+        "Filename",
+        mouse_id_col,
+        sex_col,
+        group_column
+    ]
+    for tab in selected_tabs:
+        for metric_key in progression_options["summary_metrics"]:
+            event_summary_columns.append(
+                f"{tab} {summary_metric_labels[metric_key]}"
+            )
+
+    event_summary_df = pd.DataFrame(
+        list(event_summary_rows.values())
+    )
+    for summary_column in event_summary_columns:
+        if summary_column not in event_summary_df.columns:
+            event_summary_df[summary_column] = np.nan
+    event_summary_df = event_summary_df[event_summary_columns]
+
+    if (
+        progression_options["summary_bars"]
+        and progression_options["summary_metrics"]
+    ):
+        plot_event_summary_bars(event_summary_df)
+
+    # ------------------------------------------------------------
     # EXPORT COMBINED EXCEL
     # ------------------------------------------------------------
     output_path = os.path.join(save_folder, "FED3_FP_Combined.xlsx")
@@ -2278,6 +2753,14 @@ def FED3_post_processing():
         progression_parameter_labels = [
             ("Per-mouse mean ± SEM plots", "Yes" if progression_options["per_mouse"] else "No"),
             ("Grouped overlay and metric plots", "Yes" if progression_options["grouped_summary"] else "No"),
+            ("Event-summary bar plots", "Yes" if progression_options["summary_bars"] else "No"),
+            (
+                "Event Summary metrics",
+                ", ".join(
+                    summary_metric_labels[metric_key]
+                    for metric_key in progression_options["summary_metrics"]
+                ) or "None"
+            ),
             ("Chronological wide PNG", "Yes" if progression_options["trace_wide_png"] else "No"),
             ("Chronological zoomable SVG", "Yes" if progression_options["trace_wide_svg"] else "No"),
             ("Chronological paginated PNGs", "Yes" if progression_options["trace_paginated_png"] else "No"),
@@ -2342,6 +2825,17 @@ def FED3_post_processing():
 
         parameters = pd.DataFrame(parameter_rows)
         parameters.to_excel(writer, sheet_name="Analysis Parameters", index=False)
+
+        # ------------------------------------------------------------
+        # EVENT SUMMARY
+        # ------------------------------------------------------------
+        if progression_options["summary_metrics"]:
+            event_summary_df.to_excel(
+                writer,
+                sheet_name="Event Summary",
+                index=False,
+                float_format="%.10f"
+            )
 
         for tab in selected_tabs:
 
