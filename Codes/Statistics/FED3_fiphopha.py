@@ -1318,8 +1318,9 @@ class FED3FiPhoPHAApp:
                 f"A factor of {suggested_factor} would give about "
                 f"{rate / suggested_factor:.3f} Hz. Metadata: {', '.join(self.metadata_fields)}."
             )
-            if not self.output_var.get():
-                self.output_var.set(str(path.with_name(path.stem + "_FiPhoPHA.xlsx")))
+            # Reset the destination for each successfully loaded workbook.
+            # Users can choose a different destination afterwards via Browse.
+            self.output_var.set(str(path.with_name(path.stem + "_FiPhoPHA.xlsx")))
             self.update_threshold_preview()
             self.refresh_preview()
             self.write_log("Workbook loaded successfully.")
