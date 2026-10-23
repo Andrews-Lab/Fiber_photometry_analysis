@@ -482,7 +482,7 @@ def FED3_post_processing():
     # ------------------------------------------------------------
     # SORT METADATA
     # ------------------------------------------------------------
-    
+
     if metadata_df is None:
         messagebox.showerror(
             "Metadata Error",
@@ -626,11 +626,38 @@ def FED3_post_processing():
     tab_window.title("Select Event Tabs")
 
     tab_vars = {}
-    available_tabs = ["Left", "Right", "Pellet", "Rewarded"]
+    supported_tabs = ["Left", "Right", "Pellet", "Rewarded"]
+    tab_file_counts = {tab: 0 for tab in supported_tabs}
+
+    for data_file in file_map.values():
+        try:
+            workbook_tabs = set(pd.ExcelFile(data_file).sheet_names)
+        except Exception:
+            workbook_tabs = set()
+        for tab in supported_tabs:
+            if tab in workbook_tabs:
+                tab_file_counts[tab] += 1
+
+    available_tabs = [
+        tab for tab in supported_tabs
+        if tab_file_counts[tab] > 0
+    ]
+
+    if not available_tabs:
+        messagebox.showerror(
+            "Selection Error",
+            "None of the selected files contains a Left, Right, Pellet, "
+            "or Rewarded worksheet."
+        )
+        tab_window.destroy()
+        root.destroy()
+        return
 
     for i, tab in enumerate(available_tabs):
         var = tk.BooleanVar(master=tab_window, value=True)
-        tk.Checkbutton(tab_window, text=tab, variable=var).grid(row=i, column=0, sticky="w")
+        tk.Checkbutton(tab_window, text=tab, variable=var).grid(
+            row=i, column=0, sticky="w"
+        )
         tab_vars[tab] = var
 
     selected_tabs = []
@@ -729,6 +756,7 @@ def FED3_post_processing():
         plot_options_content,
         text=(
             "The FED3_FP_Combined workbook is always created. "
+            "The Prism-ready heatmap workbook is created by default. "
             "Select any optional figures you would also like to generate."
         ),
         fg="dark green",
@@ -741,6 +769,8 @@ def FED3_post_processing():
         "Create per-mouse mean ± SEM plots",
         "Create grouped overlay and metric plots",
         "Create event-summary bar plots",
+        "Create pooled-event bar plots",
+        "Create grouped peri-event heatmaps",
         "Create individual 2D event-progression plots",
         "Create individual 3D event-progression plots",
         "Create group 3D comparison plots (shared axes)",
@@ -784,7 +814,7 @@ def FED3_post_processing():
         text="Event Summary metrics"
     )
     summary_metric_frame.grid(
-        row=9,
+        row=11,
         column=0,
         columnspan=2,
         sticky="ew",
@@ -812,6 +842,88 @@ def FED3_post_processing():
             pady=3
         )
 
+    # ------------------------------------------------------------
+    # SELECT EVENT-SPECIFIC METRIC WINDOWS
+    # ------------------------------------------------------------
+    metric_window_frame = tk.LabelFrame(
+        plot_options_content,
+        text="Event metric windows (seconds)"
+    )
+    metric_window_frame.grid(
+        row=12,
+        column=0,
+        columnspan=2,
+        sticky="ew",
+        padx=10,
+        pady=6
+    )
+
+    window_headers = [
+        "Event",
+        "AUC / Mean Z start",
+        "AUC / Mean Z end",
+        "Peak start",
+        "Peak end"
+    ]
+    for column_index, header_text in enumerate(window_headers):
+        tk.Label(
+            metric_window_frame,
+            text=header_text,
+            font=("Arial", 9, "bold")
+        ).grid(row=0, column=column_index, padx=5, pady=3)
+
+    metric_window_entries = {}
+    for event_row, tab in enumerate(selected_tabs, start=1):
+        tk.Label(metric_window_frame, text=tab).grid(
+            row=event_row,
+            column=0,
+            sticky="w",
+            padx=5,
+            pady=3
+        )
+        event_entries = {}
+        for column_index, (entry_key, default_value) in enumerate([
+            ("auc_start", "0"),
+            ("auc_end", "5"),
+            ("peak_start", "0"),
+            ("peak_end", "5")
+        ], start=1):
+            entry = tk.Entry(metric_window_frame, width=11)
+            entry.insert(0, default_value)
+            entry.grid(
+                row=event_row,
+                column=column_index,
+                padx=5,
+                pady=3
+            )
+            event_entries[entry_key] = entry
+        metric_window_entries[tab] = event_entries
+
+    def copy_first_metric_window_to_all():
+        if not selected_tabs:
+            return
+        first_entries = metric_window_entries[selected_tabs[0]]
+        copied_values = {
+            entry_key: entry.get()
+            for entry_key, entry in first_entries.items()
+        }
+        for tab in selected_tabs[1:]:
+            for entry_key, copied_value in copied_values.items():
+                entry = metric_window_entries[tab][entry_key]
+                entry.delete(0, tk.END)
+                entry.insert(0, copied_value)
+
+    tk.Button(
+        metric_window_frame,
+        text="Copy first event to all",
+        command=copy_first_metric_window_to_all
+    ).grid(
+        row=len(selected_tabs) + 1,
+        column=0,
+        columnspan=5,
+        pady=(4, 6)
+    )
+
     option_entries = {}
     general_option_defaults = [
         ("Events per group", "1"),
@@ -821,7 +933,7 @@ def FED3_post_processing():
 
     for row_number, (label, default_value) in enumerate(
         general_option_defaults,
-        start=10
+        start=13
     ):
         tk.Label(plot_options_content, text=label).grid(
             row=row_number, column=0, sticky="e", padx=8, pady=4
@@ -835,27 +947,27 @@ def FED3_post_processing():
         master=plot_options_window,
         value="Use full available range"
     )
-    tk.Label(plot_options_content, text="3D time range").grid(
-        row=13, column=0, sticky="e", padx=8, pady=4
+    tk.Label(plot_options_content, text="3D / heatmap time range").grid(
+        row=16, column=0, sticky="e", padx=8, pady=4
     )
     tk.OptionMenu(
         plot_options_content,
         time_range_mode,
         "Use full available range",
         "Custom range"
-    ).grid(row=13, column=1, sticky="w", padx=8, pady=4)
+    ).grid(row=16, column=1, sticky="w", padx=8, pady=4)
 
-    tk.Label(plot_options_content, text="3D start time (s)").grid(
-        row=14, column=0, sticky="e", padx=8, pady=4
+    tk.Label(plot_options_content, text="Plot start time (s)").grid(
+        row=17, column=0, sticky="e", padx=8, pady=4
     )
     custom_start_entry = tk.Entry(plot_options_content, width=10, state="disabled")
-    custom_start_entry.grid(row=14, column=1, sticky="w", padx=8, pady=4)
+    custom_start_entry.grid(row=17, column=1, sticky="w", padx=8, pady=4)
 
-    tk.Label(plot_options_content, text="3D end time (s)").grid(
-        row=15, column=0, sticky="e", padx=8, pady=4
+    tk.Label(plot_options_content, text="Plot end time (s)").grid(
+        row=18, column=0, sticky="e", padx=8, pady=4
     )
     custom_end_entry = tk.Entry(plot_options_content, width=10, state="disabled")
-    custom_end_entry.grid(row=15, column=1, sticky="w", padx=8, pady=4)
+    custom_end_entry.grid(row=18, column=1, sticky="w", padx=8, pady=4)
 
     viewing_option_defaults = [
         ("Vertical viewing angle", "25"),
@@ -863,7 +975,7 @@ def FED3_post_processing():
     ]
     for row_number, (label, default_value) in enumerate(
         viewing_option_defaults,
-        start=16
+        start=19
     ):
         tk.Label(plot_options_content, text=label).grid(
             row=row_number, column=0, sticky="e", padx=8, pady=4
@@ -884,6 +996,19 @@ def FED3_post_processing():
 
     time_range_mode.trace_add("write", update_custom_time_entries)
 
+    prism_export_var = tk.BooleanVar(
+        master=plot_options_window,
+        value=True
+    )
+    prism_combined_var = tk.BooleanVar(
+        master=plot_options_window,
+        value=True
+    )
+    prism_split_var = tk.BooleanVar(
+        master=plot_options_window,
+        value=True
+    )
+
     progression_options = {}
 
     def confirm_plot_options():
@@ -893,6 +1018,39 @@ def FED3_post_processing():
             line_width = float(option_entries["Line width"].get())
             elevation = float(option_entries["Vertical viewing angle"].get())
             azimuth = float(option_entries["Horizontal viewing angle"].get())
+            prism_downsample_factor = int(prism_downsample_entry.get())
+            prism_gap_rows = int(prism_gap_entry.get())
+
+            event_auc_windows = {}
+            event_peak_windows = {}
+            for tab in selected_tabs:
+                entries = metric_window_entries[tab]
+                auc_start = float(entries["auc_start"].get())
+                auc_end = float(entries["auc_end"].get())
+                peak_start = float(entries["peak_start"].get())
+                peak_end = float(entries["peak_end"].get())
+
+                if auc_start >= auc_end:
+                    messagebox.showerror(
+                        "Window Error",
+                        f"{tab}: AUC / Mean Z start must be less than its end."
+                    )
+                    return
+                if peak_start >= peak_end:
+                    messagebox.showerror(
+                        "Window Error",
+                        f"{tab}: Peak start must be less than its end."
+                    )
+                    return
+
+                event_auc_windows[tab] = {
+                    "start": auc_start,
+                    "end": auc_end
+                }
+                event_peak_windows[tab] = {
+                    "start": peak_start,
+                    "end": peak_end
+                }
 
             custom_3d_range = time_range_mode.get() == "Custom range"
             plot_time_start = None
@@ -903,7 +1061,7 @@ def FED3_post_processing():
                 if plot_time_start >= plot_time_end:
                     messagebox.showerror(
                         "Error",
-                        "The custom 3D start time must be less than the end time."
+                        "The custom plot start time must be less than the end time."
                     )
                     return
 
@@ -912,6 +1070,24 @@ def FED3_post_processing():
                     "Error",
                     "Events per group and downsampling factor must be at least 1, "
                     "and line width must be greater than 0."
+                )
+                return
+            if prism_downsample_factor < 1 or prism_gap_rows < 0:
+                messagebox.showerror(
+                    "Error",
+                    "Prism downsampling must be at least 1 and group gap rows "
+                    "cannot be negative."
+                )
+                return
+            if (
+                prism_export_var.get()
+                and not prism_combined_var.get()
+                and not prism_split_var.get()
+            ):
+                messagebox.showerror(
+                    "Error",
+                    "Select combined matrices, split matrices, or both for "
+                    "the Prism heatmap workbook."
                 )
                 return
 
@@ -937,6 +1113,19 @@ def FED3_post_processing():
                     "Select at least one Event Summary metric for bar plots."
                 )
                 return
+            if (
+                checkbox_variables["Create pooled-event bar plots"].get()
+                and not any(
+                    metric_key != "event_count"
+                    for metric_key in selected_summary_metrics
+                )
+            ):
+                messagebox.showerror(
+                    "Error",
+                    "Select at least one non-count Event Summary metric for "
+                    "pooled-event bar plots."
+                )
+                return
             progression_options.update({
                 "per_mouse": checkbox_variables[
                     "Create per-mouse mean ± SEM plots"].get(),
@@ -944,7 +1133,18 @@ def FED3_post_processing():
                     "Create grouped overlay and metric plots"].get(),
                 "summary_bars": checkbox_variables[
                     "Create event-summary bar plots"].get(),
+                "pooled_event_bars": checkbox_variables[
+                    "Create pooled-event bar plots"].get(),
+                "grouped_heatmaps": checkbox_variables[
+                    "Create grouped peri-event heatmaps"].get(),
+                "prism_heatmaps": prism_export_var.get(),
+                "prism_combined": prism_combined_var.get(),
+                "prism_split": prism_split_var.get(),
+                "prism_downsample_factor": prism_downsample_factor,
+                "prism_gap_rows": prism_gap_rows,
                 "summary_metrics": selected_summary_metrics,
+                "auc_windows": event_auc_windows,
+                "peak_windows": event_peak_windows,
                 "trace_page_events": trace_page_events,
                 "trace_wide_png": trace_format_vars["wide_png"].get(),
                 "trace_wide_svg": trace_format_vars["wide_svg"].get(),
@@ -987,7 +1187,7 @@ def FED3_post_processing():
     # ------------------------------------------------------------
     chronological_colors = dict(CHRONO_COLORS)
     event_color_frame = tk.LabelFrame(plot_options_content, text="Chronological event colours")
-    event_color_frame.grid(row=18, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
+    event_color_frame.grid(row=21, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
     event_color_buttons = []
     for column, event in enumerate(CHRONO_COLORS):
         button = tk.Button(event_color_frame, text=event, bg=chronological_colors[event], width=10)
@@ -1035,11 +1235,95 @@ def FED3_post_processing():
     trace_format_vars["paginated_png"].trace_add("write", update_event_color_controls)
     update_event_color_controls()
 
+    # ------------------------------------------------------------
+    # PRISM HEATMAP EXPORT OPTIONS
+    # ------------------------------------------------------------
+    prism_export_frame = tk.LabelFrame(
+        plot_options_content,
+        text="Prism heatmap export"
+    )
+    prism_export_frame.grid(
+        row=22,
+        column=0,
+        columnspan=2,
+        sticky="ew",
+        padx=10,
+        pady=6
+    )
+
+    prism_export_button = tk.Checkbutton(
+        prism_export_frame,
+        text="Create FED3_FP_Prism_Heatmaps.xlsx",
+        variable=prism_export_var
+    )
+    prism_export_button.grid(
+        row=0,
+        column=0,
+        columnspan=2,
+        sticky="w",
+        padx=6,
+        pady=3
+    )
+
+    prism_combined_button = tk.Checkbutton(
+        prism_export_frame,
+        text="Create combined comparison matrices",
+        variable=prism_combined_var
+    )
+    prism_combined_button.grid(
+        row=1,
+        column=0,
+        columnspan=2,
+        sticky="w",
+        padx=18,
+        pady=3
+    )
+
+    prism_split_button = tk.Checkbutton(
+        prism_export_frame,
+        text="Create split group matrices",
+        variable=prism_split_var
+    )
+    prism_split_button.grid(
+        row=2,
+        column=0,
+        columnspan=2,
+        sticky="w",
+        padx=18,
+        pady=3
+    )
+
+    tk.Label(
+        prism_export_frame,
+        text="Prism downsampling factor"
+    ).grid(row=3, column=0, sticky="e", padx=6, pady=3)
+    prism_downsample_entry = tk.Entry(prism_export_frame, width=8)
+    prism_downsample_entry.insert(0, "1")
+    prism_downsample_entry.grid(row=3, column=1, sticky="w", padx=6, pady=3)
+
+    tk.Label(
+        prism_export_frame,
+        text="Blank rows between groups"
+    ).grid(row=4, column=0, sticky="e", padx=6, pady=3)
+    prism_gap_entry = tk.Entry(prism_export_frame, width=8)
+    prism_gap_entry.insert(0, "1")
+    prism_gap_entry.grid(row=4, column=1, sticky="w", padx=6, pady=3)
+
+    def update_prism_export_controls(*_):
+        state = "normal" if prism_export_var.get() else "disabled"
+        prism_combined_button.configure(state=state)
+        prism_split_button.configure(state=state)
+        prism_downsample_entry.configure(state=state)
+        prism_gap_entry.configure(state=state)
+
+    prism_export_var.trace_add("write", update_prism_export_controls)
+    update_prism_export_controls()
+
     tk.Button(
         plot_options_content,
         text="Confirm",
         command=confirm_plot_options
-    ).grid(row=19, column=0, columnspan=2, pady=10)
+    ).grid(row=23, column=0, columnspan=2, pady=10)
 
     plot_options_window.update_idletasks()
     screen_width = plot_options_window.winfo_screenwidth()
@@ -1049,7 +1333,7 @@ def FED3_post_processing():
     requested_width = plot_options_content.winfo_reqwidth() + \
         plot_options_scrollbar.winfo_reqwidth() + 4
     requested_height = plot_options_content.winfo_reqheight() + 4
-    window_width = min(requested_width, maximum_width)
+    window_width = min(max(requested_width, 760), maximum_width)
     window_height = min(requested_height, maximum_height)
     window_x = max(0, (screen_width - window_width) // 2)
     window_y = max(0, (screen_height - window_height) // 2)
@@ -1067,64 +1351,8 @@ def FED3_post_processing():
         root.destroy()
         return
 
-    # ------------------------------------------------------------
-    # ASK FOR ANALYSIS TIME WINDOWS
-    # ------------------------------------------------------------
-    window_popup = tk.Toplevel(root)
-    window_popup.title("Set Time Windows (seconds)")
-
-    tk.Label(window_popup, text="").grid(row=0, column=0, padx=8, pady=4)
-    tk.Label(window_popup, text="Start", font=("Arial", 10, "bold")).grid(row=0, column=1, padx=8, pady=4)
-    tk.Label(window_popup, text="End", font=("Arial", 10, "bold")).grid(row=0, column=2, padx=8, pady=4)
-
-    tk.Label(window_popup, text="AUC / Mean Z-score").grid(row=1, column=0, sticky="e", padx=8, pady=4)
-    auc_start_entry = tk.Entry(window_popup, width=10)
-    auc_start_entry.insert(0, "0")
-    auc_start_entry.grid(row=1, column=1, padx=8, pady=4)
-    auc_end_entry = tk.Entry(window_popup, width=10)
-    auc_end_entry.insert(0, "5")
-    auc_end_entry.grid(row=1, column=2, padx=8, pady=4)
-
-    tk.Label(window_popup, text="Peak Z-score").grid(row=2, column=0, sticky="e", padx=8, pady=4)
-    peak_start_entry = tk.Entry(window_popup, width=10)
-    peak_start_entry.insert(0, "0")
-    peak_start_entry.grid(row=2, column=1, padx=8, pady=4)
-    peak_end_entry = tk.Entry(window_popup, width=10)
-    peak_end_entry.insert(0, "5")
-    peak_end_entry.grid(row=2, column=2, padx=8, pady=4)
-
-    auc_window = {}
-    peak_window = {}
-
-    def confirm_window():
-        try:
-            auc_start = float(auc_start_entry.get())
-            auc_end = float(auc_end_entry.get())
-            peak_start = float(peak_start_entry.get())
-            peak_end = float(peak_end_entry.get())
-
-            if auc_start >= auc_end or peak_start >= peak_end:
-                messagebox.showerror("Error", "Each start time must be less than its end time")
-                return
-
-            auc_window["start"] = auc_start
-            auc_window["end"] = auc_end
-            peak_window["start"] = peak_start
-            peak_window["end"] = peak_end
-
-            window_popup.destroy()
-
-        except ValueError:
-            messagebox.showerror("Error", "Please enter valid numbers")
-
-    tk.Button(window_popup, text="Confirm", command=confirm_window)\
-        .grid(row=3, column=0, columnspan=3, pady=8)
-
-    root.wait_window(window_popup)
-
-    if not auc_window or not peak_window:
-        root.destroy()
-        return
+    auc_windows = progression_options["auc_windows"]
+    peak_windows = progression_options["peak_windows"]
 
     # ------------------------------------------------------------
     # PLOTTING HELPERS
@@ -1166,6 +1394,8 @@ def FED3_post_processing():
     group_colours_used = (
         progression_options["grouped_summary"]
         or progression_options["summary_bars"]
+        or progression_options["pooled_event_bars"]
+        or progression_options["grouped_heatmaps"]
         or progression_options["group_3d"]
         or progression_options["chronological_sequence"]
         or progression_options["chronological_heatmaps"]
@@ -1197,6 +1427,8 @@ def FED3_post_processing():
         progression_options["per_mouse"],
         progression_options["grouped_summary"],
         progression_options["summary_bars"],
+        progression_options["pooled_event_bars"],
+        progression_options["grouped_heatmaps"],
         progression_options["individual_2d"],
         progression_options["individual_3d"],
         progression_options["group_3d"],
@@ -2326,6 +2558,718 @@ def FED3_post_processing():
                     )
 
     # ------------------------------------------------------------
+    # POOLED-EVENT BAR PLOTS
+    # ------------------------------------------------------------
+    def plot_pooled_event_bar(
+        event_data,
+        tab,
+        metric_label,
+        y_label,
+        group_mode,
+        group_label,
+        plot_folder,
+        filename,
+        title_suffix=None
+    ):
+        groups = grouped_items(event_data, group_mode)
+        if not groups:
+            return
+
+        group_names = sorted(groups, key=str)
+        figure, axis = plt.subplots(
+            figsize=(max(6, 1.4 * len(group_names)), 6)
+        )
+
+        for group_index, group_name in enumerate(group_names):
+            group_arrays = []
+            for _, _, _, values in groups[group_name]:
+                numeric_values = np.asarray(values, dtype=float).reshape(-1)
+                group_arrays.append(numeric_values[np.isfinite(numeric_values)])
+
+            pooled_values = (
+                np.concatenate(group_arrays)
+                if group_arrays
+                else np.asarray([], dtype=float)
+            )
+            if pooled_values.size == 0:
+                continue
+
+            bar_color, _ = get_group_style(groups[group_name], group_mode)
+            if bar_color is None:
+                bar_color = to_hex(
+                    plt.get_cmap("tab10")(group_index % 10)
+                )
+
+            group_mean = float(np.mean(pooled_values))
+            group_sem = (
+                float(np.std(pooled_values, ddof=1) / np.sqrt(pooled_values.size))
+                if pooled_values.size > 1
+                else 0.0
+            )
+            axis.bar(
+                group_index,
+                group_mean,
+                yerr=group_sem,
+                color=bar_color,
+                alpha=0.65,
+                edgecolor="black",
+                linewidth=1,
+                capsize=5,
+                zorder=1
+            )
+
+            point_offsets = (
+                np.linspace(-0.16, 0.16, pooled_values.size)
+                if pooled_values.size > 1
+                else np.asarray([0.0])
+            )
+            axis.scatter(
+                group_index + point_offsets,
+                pooled_values,
+                color=bar_color,
+                edgecolor="black",
+                linewidth=0.4,
+                s=30,
+                alpha=0.8,
+                zorder=2
+            )
+
+        axis.set_xticks(range(len(group_names)))
+        axis.set_xticklabels(group_names, rotation=25, ha="right")
+        axis.set_ylabel(y_label)
+        axis.set_xlabel(group_label)
+        axis.set_title(
+            title_suffix
+            or f"{tab} {metric_label} — All Events"
+        )
+        axis.spines["top"].set_visible(False)
+        axis.spines["right"].set_visible(False)
+        figure.tight_layout()
+        finish_figure(figure, tab, plot_folder, filename)
+
+    def plot_pooled_event_groupings(event_data, tab, metric_key, metric_spec):
+        short_metric = metric_spec["short_name"]
+        metric_label = metric_spec["label"]
+        y_label = metric_spec["y_label"]
+
+        plot_pooled_event_bar(
+            event_data, tab, metric_label, y_label,
+            "genotype", group_column, group_column,
+            f"Events_{short_metric}_by_Group.png"
+        )
+
+        if unique_group_count(event_data, "sex") > 1:
+            plot_pooled_event_bar(
+                event_data, tab, metric_label, y_label,
+                "sex", sex_col, sex_col,
+                f"Events_{short_metric}_by_Sex.png"
+            )
+
+        if unique_group_count(event_data, "sex_genotype") > 1:
+            plot_pooled_event_bar(
+                event_data, tab, metric_label, y_label,
+                "sex_genotype", f"{sex_col} x {group_column}",
+                f"{sex_col}_x_{group_column}",
+                f"Events_{short_metric}_by_Sex_Group.png"
+            )
+
+        for sex_value in sorted(set(
+            clean_group_value(item[2]) for item in event_data
+        )):
+            subset_data = subset_items(event_data, "sex", sex_value)
+            if unique_group_count(subset_data, "genotype") <= 1:
+                continue
+            plot_pooled_event_bar(
+                subset_data, tab, metric_label, y_label,
+                "genotype", group_column, "Subgroup_Comparisons",
+                f"Events_{short_metric}_{safe_filename_value(sex_value)}.png",
+                f"{tab} {metric_label} — {sex_col}: {sex_value}"
+            )
+
+        for genotype_value in sorted(set(
+            clean_group_value(item[1]) for item in event_data
+        )):
+            subset_data = subset_items(event_data, "genotype", genotype_value)
+            if unique_group_count(subset_data, "sex") <= 1:
+                continue
+            plot_pooled_event_bar(
+                subset_data, tab, metric_label, y_label,
+                "sex", sex_col, "Subgroup_Comparisons",
+                f"Events_{short_metric}_{safe_filename_value(genotype_value)}.png",
+                f"{tab} {metric_label} — {group_column}: {genotype_value}"
+            )
+
+    # ------------------------------------------------------------
+    # GROUPED PERI-EVENT HEATMAPS
+    # ------------------------------------------------------------
+    def plot_grouped_event_heatmap(
+        trace_data,
+        tab,
+        group_mode,
+        group_label,
+        filename,
+        title_suffix=None
+    ):
+        groups = grouped_items(trace_data, group_mode)
+        if not groups:
+            return
+
+        display_time = np.asarray(reference_time, dtype=float)
+        matrices = []
+        group_names = []
+        group_sizes = []
+
+        for group_name in sorted(groups, key=str):
+            event_matrices = []
+            for _, _, _, trials in groups[group_name]:
+                event_matrices.append(np.asarray(trials, dtype=float))
+            if not event_matrices:
+                continue
+            group_matrix = np.concatenate(event_matrices, axis=1)
+            if group_matrix.shape[1] == 0:
+                continue
+            matrices.append(group_matrix)
+            group_names.append(group_name)
+            group_sizes.append(group_matrix.shape[1])
+
+        if not matrices:
+            return
+
+        combined_matrix = np.concatenate(matrices, axis=1)
+        display_time, combined_matrix = restrict_3d_plot_range(
+            display_time,
+            combined_matrix
+        )
+        if display_time.size == 0:
+            return
+        display_time, combined_matrix = downsample_plot_matrix(
+            display_time,
+            combined_matrix
+        )
+        heatmap_matrix = combined_matrix.T
+
+        finite_values = heatmap_matrix[np.isfinite(heatmap_matrix)]
+        if finite_values.size == 0:
+            return
+        colour_limit = float(np.nanpercentile(np.abs(finite_values), 98))
+        if not np.isfinite(colour_limit) or colour_limit == 0:
+            colour_limit = 1.0
+
+        figure_height = max(5.5, min(14, 3.5 + heatmap_matrix.shape[0] * 0.08))
+        figure, axis = plt.subplots(figsize=(10, figure_height))
+        image = axis.imshow(
+            heatmap_matrix,
+            aspect="auto",
+            interpolation="nearest",
+            cmap="coolwarm",
+            vmin=-colour_limit,
+            vmax=colour_limit,
+            extent=[
+                float(display_time[0]),
+                float(display_time[-1]),
+                heatmap_matrix.shape[0],
+                0
+            ]
+        )
+
+        group_centres = []
+        row_start = 0
+        for group_size in group_sizes:
+            row_end = row_start + group_size
+            group_centres.append((row_start + row_end) / 2)
+            if row_end < heatmap_matrix.shape[0]:
+                axis.axhline(row_end, color="black", linewidth=1.2)
+            row_start = row_end
+
+        axis.set_yticks(group_centres)
+        axis.set_yticklabels(group_names)
+        axis.set_ylabel(group_label)
+        axis.set_xlabel("Peri-event time (s)")
+        axis.axvline(0, color="black", linestyle="--", linewidth=1)
+        axis.set_title(
+            title_suffix
+            or f"{tab} Events by {group_label}"
+        )
+        colourbar = figure.colorbar(image, ax=axis, pad=0.02)
+        colourbar.set_label("Z-score")
+        figure.tight_layout()
+        finish_figure(figure, tab, "Heatmaps", filename)
+
+    def plot_available_grouped_heatmaps(trace_data, tab):
+        plot_grouped_event_heatmap(
+            trace_data, tab, "genotype", group_column,
+            "Heatmap_by_Group.png"
+        )
+
+        if unique_group_count(trace_data, "sex") > 1:
+            plot_grouped_event_heatmap(
+                trace_data, tab, "sex", sex_col,
+                "Heatmap_by_Sex.png"
+            )
+
+        if unique_group_count(trace_data, "sex_genotype") > 1:
+            plot_grouped_event_heatmap(
+                trace_data, tab, "sex_genotype",
+                f"{sex_col} x {group_column}",
+                "Heatmap_by_Sex_Group.png"
+            )
+
+        for sex_value in sorted(set(
+            clean_group_value(item[2]) for item in trace_data
+        )):
+            subset_trace = subset_items(trace_data, "sex", sex_value)
+            if unique_group_count(subset_trace, "genotype") <= 1:
+                continue
+            plot_grouped_event_heatmap(
+                subset_trace, tab, "genotype", group_column,
+                f"Heatmap_{safe_filename_value(sex_value)}.png",
+                f"{tab} Events — {sex_col}: {sex_value}"
+            )
+
+        for genotype_value in sorted(set(
+            clean_group_value(item[1]) for item in trace_data
+        )):
+            subset_trace = subset_items(
+                trace_data, "genotype", genotype_value
+            )
+            if unique_group_count(subset_trace, "sex") <= 1:
+                continue
+            plot_grouped_event_heatmap(
+                subset_trace, tab, "sex", sex_col,
+                f"Heatmap_{safe_filename_value(genotype_value)}.png",
+                f"{tab} Events — {group_column}: {genotype_value}"
+            )
+
+    # ------------------------------------------------------------
+    # PRISM-READY HEATMAP MATRICES
+    # ------------------------------------------------------------
+    def downsample_prism_matrix(time_values, matrix):
+        factor = progression_options["prism_downsample_factor"]
+        if factor <= 1 or len(time_values) < factor:
+            return time_values, matrix
+
+        usable_rows = (len(time_values) // factor) * factor
+        downsampled_time = np.nanmean(
+            time_values[:usable_rows].reshape(-1, factor),
+            axis=1
+        )
+        downsampled_matrix = np.nanmean(
+            matrix[:usable_rows, :].reshape(
+                -1,
+                factor,
+                matrix.shape[1]
+            ),
+            axis=1
+        )
+        return downsampled_time, downsampled_matrix
+
+    def format_prism_display_time(value, sampling_interval):
+        nearest_integer = round(float(value))
+        tolerance = max(abs(float(sampling_interval)), 0.05)
+        if abs(float(value) - nearest_integer) <= tolerance:
+            return str(int(nearest_integer))
+        return f"{float(value):.6g}"
+
+    def build_prism_time_labels(display_time):
+        labels = [""] * len(display_time)
+        if len(display_time) == 0:
+            return labels
+
+        intervals = np.diff(display_time)
+        sampling_interval = (
+            float(np.nanmedian(intervals))
+            if intervals.size
+            else 0.0
+        )
+        labels[0] = format_prism_display_time(
+            display_time[0],
+            sampling_interval
+        )
+        labels[-1] = format_prism_display_time(
+            display_time[-1],
+            sampling_interval
+        )
+
+        if display_time[0] <= 0 <= display_time[-1]:
+            zero_index = int(np.argmin(np.abs(display_time)))
+            labels[zero_index] = "0"
+
+        return labels
+
+    def excel_column_name(column_number):
+        name = ""
+        while column_number:
+            column_number, remainder = divmod(column_number - 1, 26)
+            name = chr(65 + remainder) + name
+        return name
+
+    def prepare_prism_heatmap_matrix(trace_data, gap_rows):
+        groups = grouped_items(trace_data, "genotype")
+        if not groups:
+            return None
+
+        display_time = np.asarray(reference_time, dtype=float)
+        group_blocks = []
+
+        for group_name in sorted(groups, key=str):
+            event_rows = []
+            event_metadata = []
+
+            for mouse, genotype, sex, trials in groups[group_name]:
+                trial_matrix = np.asarray(trials, dtype=float)
+                for event_number in range(trial_matrix.shape[1]):
+                    event_rows.append(trial_matrix[:, event_number])
+                    event_metadata.append({
+                        mouse_id_col: mouse,
+                        sex_col: clean_group_value(sex),
+                        group_column: clean_group_value(genotype),
+                        "Event Number": event_number + 1,
+                        "Separator Row": "No"
+                    })
+
+            if event_rows:
+                group_blocks.append({
+                    "name": clean_group_value(group_name),
+                    "matrix": np.column_stack(event_rows),
+                    "metadata": event_metadata
+                })
+
+        if not group_blocks:
+            return None
+
+        combined_matrix = np.concatenate(
+            [block["matrix"] for block in group_blocks],
+            axis=1
+        )
+        display_time, combined_matrix = restrict_3d_plot_range(
+            display_time,
+            combined_matrix
+        )
+        if display_time.size == 0:
+            return None
+        display_time, combined_matrix = downsample_prism_matrix(
+            display_time,
+            combined_matrix
+        )
+
+        output_rows = []
+        output_metadata = []
+        row_labels = []
+        source_column = 0
+
+        for group_index, block in enumerate(group_blocks):
+            group_size = block["matrix"].shape[1]
+            labels = [""] * group_size
+            labels[group_size // 2] = block["name"]
+
+            for event_index in range(group_size):
+                output_rows.append(combined_matrix[:, source_column])
+                output_metadata.append(block["metadata"][event_index])
+                row_labels.append(labels[event_index])
+                source_column += 1
+
+            if group_index < len(group_blocks) - 1:
+                for _ in range(gap_rows):
+                    output_rows.append(
+                        np.full(display_time.shape[0], np.nan)
+                    )
+                    output_metadata.append({
+                        mouse_id_col: "",
+                        sex_col: "",
+                        group_column: "",
+                        "Event Number": "",
+                        "Separator Row": "Yes"
+                    })
+                    row_labels.append("")
+
+        heatmap_matrix = np.vstack(output_rows)
+        time_labels = build_prism_time_labels(display_time)
+        prism_table = pd.DataFrame(
+            heatmap_matrix,
+            columns=time_labels
+        )
+        prism_table.insert(0, "Row title", row_labels)
+
+        return {
+            "table": prism_table,
+            "metadata": output_metadata,
+            "time": display_time,
+            "time_labels": time_labels,
+            "groups": [block["name"] for block in group_blocks],
+            "event_rows": sum(
+                block["matrix"].shape[1]
+                for block in group_blocks
+            )
+        }
+
+    def prism_sheet_token(value):
+        return safe_filename_value(value).replace("_", "") or "Unknown"
+
+    def allocate_prism_sheet_name(parts, used_names):
+        base_name = "_".join(
+            prism_sheet_token(part)
+            for part in parts
+            if str(part).strip()
+        ) or "Heatmap"
+        base_name = re.sub(r"[\\/*?:\[\]]", "_", base_name)
+
+        candidate = base_name[:31]
+        suffix_number = 2
+        while candidate.casefold() in used_names:
+            suffix = f"_{suffix_number}"
+            candidate = base_name[:31 - len(suffix)] + suffix
+            suffix_number += 1
+
+        used_names.add(candidate.casefold())
+        return candidate, base_name
+
+    def export_prism_heatmap_workbook():
+        if not progression_options["prism_heatmaps"]:
+            return None
+
+        workbook_path = os.path.join(
+            save_folder,
+            "FED3_FP_Prism_Heatmaps.xlsx"
+        )
+        used_sheet_names = {
+            "analysis parameters",
+            "matrix index",
+            "time map",
+            "row map"
+        }
+        matrix_exports = []
+        matrix_index_rows = []
+        row_map_rows = []
+        time_map_rows = []
+
+        def add_matrix(
+            trace_data,
+            tab,
+            sheet_parts,
+            subset_value,
+            matrix_type,
+            gap_rows
+        ):
+            prepared = prepare_prism_heatmap_matrix(
+                trace_data,
+                gap_rows
+            )
+            if prepared is None:
+                return
+
+            sheet_name, full_name = allocate_prism_sheet_name(
+                sheet_parts,
+                used_sheet_names
+            )
+            matrix_exports.append((sheet_name, prepared["table"]))
+
+            time_values = prepared["time"]
+            zero_index = int(np.argmin(np.abs(time_values)))
+            if not time_map_rows:
+                for time_index, (
+                    actual_time,
+                    display_label
+                ) in enumerate(zip(
+                    time_values,
+                    prepared["time_labels"]
+                ), start=1):
+                    time_map_rows.append({
+                        "Matrix time column": time_index,
+                        "Excel column": excel_column_name(time_index + 1),
+                        "Actual time (s)": float(actual_time),
+                        "Display label": display_label
+                    })
+            matrix_index_rows.append({
+                "Sheet": sheet_name,
+                "Full generated name": full_name,
+                "Event": tab,
+                "Subset header": sex_col if subset_value != "All" else "",
+                "Subset value": subset_value if subset_value != "All" else "All",
+                "Group header": group_column,
+                "Groups": " | ".join(prepared["groups"]),
+                "Matrix type": matrix_type,
+                "Event rows": prepared["event_rows"],
+                "Separator rows": len(prepared["table"]) - prepared["event_rows"],
+                "Time points": len(time_values),
+                "Time start (s)": float(time_values[0]),
+                "Time end (s)": float(time_values[-1]),
+                "Closest time to zero (s)": float(time_values[zero_index]),
+                "Zero-time matrix column": zero_index + 1,
+                "Zero-time Excel column": excel_column_name(zero_index + 2),
+                "Prism 8 column advisory": (
+                    "Exceeds 256 columns"
+                    if len(time_values) > 256
+                    else "Within 256 columns"
+                )
+            })
+
+            for matrix_row, metadata in enumerate(
+                prepared["metadata"],
+                start=1
+            ):
+                row_map_rows.append({
+                    "Matrix sheet": sheet_name,
+                    "Matrix row": matrix_row,
+                    "Excel row": matrix_row + 1,
+                    mouse_id_col: metadata[mouse_id_col],
+                    sex_col: metadata[sex_col],
+                    group_column: metadata[group_column],
+                    "Event Number": metadata["Event Number"],
+                    "Separator Row": metadata["Separator Row"]
+                })
+
+        for tab in selected_tabs:
+            trace_data = combined_raw[tab]
+            if not trace_data:
+                continue
+
+            if progression_options["prism_combined"]:
+                add_matrix(
+                    trace_data,
+                    tab,
+                    [tab, "All"],
+                    "All",
+                    "Combined comparison",
+                    progression_options["prism_gap_rows"]
+                )
+
+            if progression_options["prism_split"]:
+                for group_value in sorted(set(
+                    clean_group_value(item[1])
+                    for item in trace_data
+                )):
+                    group_trace = subset_items(
+                        trace_data,
+                        "genotype",
+                        group_value
+                    )
+                    add_matrix(
+                        group_trace,
+                        tab,
+                        [tab, group_value],
+                        "All",
+                        "Split group",
+                        0
+                    )
+
+            for sex_value in sorted(set(
+                clean_group_value(item[2])
+                for item in trace_data
+            )):
+                sex_trace = subset_items(
+                    trace_data,
+                    "sex",
+                    sex_value
+                )
+                if not sex_trace:
+                    continue
+
+                if progression_options["prism_combined"]:
+                    add_matrix(
+                        sex_trace,
+                        tab,
+                        [tab, sex_value],
+                        sex_value,
+                        "Combined comparison",
+                        progression_options["prism_gap_rows"]
+                    )
+
+                if progression_options["prism_split"]:
+                    for group_value in sorted(set(
+                        clean_group_value(item[1])
+                        for item in sex_trace
+                    )):
+                        group_trace = subset_items(
+                            sex_trace,
+                            "genotype",
+                            group_value
+                        )
+                        add_matrix(
+                            group_trace,
+                            tab,
+                            [tab, sex_value, group_value],
+                            sex_value,
+                            "Split group",
+                            0
+                        )
+
+        original_time = np.asarray(reference_time, dtype=float)
+        original_intervals = np.diff(original_time)
+        original_interval = (
+            float(np.nanmedian(original_intervals))
+            if original_intervals.size
+            else np.nan
+        )
+        exported_interval = (
+            original_interval
+            * progression_options["prism_downsample_factor"]
+            if np.isfinite(original_interval)
+            else np.nan
+        )
+        parameter_rows = [
+            ("Selected event tabs", ", ".join(selected_tabs)),
+            ("Row unit", "Individual peri-events"),
+            ("Mouse identifier header", mouse_id_col),
+            ("Sex header", sex_col),
+            ("Group header", group_column),
+            ("Combined comparison matrices", "Yes" if progression_options["prism_combined"] else "No"),
+            ("Split group matrices", "Yes" if progression_options["prism_split"] else "No"),
+            ("Heatmap time range", progression_options["time_range_mode"]),
+            ("Requested start time (s)", progression_options["time_start"]),
+            ("Requested end time (s)", progression_options["time_end"]),
+            ("Prism downsampling factor", progression_options["prism_downsample_factor"]),
+            ("Blank rows between groups", progression_options["prism_gap_rows"]),
+            ("Original sampling interval (s)", original_interval),
+            ("Original sampling rate (Hz)", 1 / original_interval if original_interval > 0 else np.nan),
+            ("Exported sampling interval (s)", exported_interval),
+            ("Exported sampling rate (Hz)", 1 / exported_interval if exported_interval > 0 else np.nan),
+            ("Time-title style", "Start, zero and end only"),
+            ("Full timestamp mapping", "Time Map sheet"),
+            ("Group label placement", "Centre event row"),
+            ("Missing-value representation", "Blank Excel cells")
+        ]
+        parameter_table = pd.DataFrame(
+            parameter_rows,
+            columns=["Parameter", "Value"]
+        )
+        matrix_index = pd.DataFrame(matrix_index_rows)
+        time_map = pd.DataFrame(time_map_rows)
+        row_map = pd.DataFrame(row_map_rows)
+
+        with pd.ExcelWriter(workbook_path) as writer:
+            parameter_table.to_excel(
+                writer,
+                sheet_name="Analysis Parameters",
+                index=False
+            )
+            matrix_index.to_excel(
+                writer,
+                sheet_name="Matrix Index",
+                index=False
+            )
+            time_map.to_excel(
+                writer,
+                sheet_name="Time Map",
+                index=False,
+                float_format="%.10f"
+            )
+            row_map.to_excel(
+                writer,
+                sheet_name="Row Map",
+                index=False
+            )
+            for sheet_name, prism_table in matrix_exports:
+                prism_table.to_excel(
+                    writer,
+                    sheet_name=sheet_name,
+                    index=False,
+                    float_format="%.10f"
+                )
+
+        print("\nPrism heatmap workbook saved:", workbook_path)
+        return workbook_path
+
+    # ------------------------------------------------------------
     # STORAGE
     # ------------------------------------------------------------
     combined_raw = {tab: [] for tab in selected_tabs}
@@ -2358,6 +3302,46 @@ def FED3_post_processing():
         "peak_time_mean": "Peak-time Mean",
         "time_to_baseline_mean": "Time-to-baseline Mean"
     }
+
+    pooled_metric_specs = {
+        "peak_mean": {
+            "label": "Peak Values",
+            "short_name": "Peak",
+            "y_label": "Peak Z-score",
+            "storage": combined_max
+        },
+        "peak_time_mean": {
+            "label": "Peak Value Time",
+            "short_name": "PeakTime",
+            "y_label": "Time of Peak (s)",
+            "storage": combined_max_time
+        },
+        "time_to_baseline_mean": {
+            "label": "Time to Baseline",
+            "short_name": "Baseline",
+            "y_label": "Time to Baseline (s)",
+            "storage": combined_time_to_baseline
+        },
+        "auc_mean": {
+            "label": "AUC",
+            "short_name": "AUC",
+            "y_label": "AUC",
+            "storage": combined_auc
+        },
+        "window_meanz": {
+            "label": "Mean Z Window",
+            "short_name": "MeanZ",
+            "y_label": "Mean Z",
+            "storage": combined_meanz
+        }
+    }
+    pooled_metric_order = [
+        "peak_mean",
+        "peak_time_mean",
+        "time_to_baseline_mean",
+        "auc_mean",
+        "window_meanz"
+    ]
 
     def mean_of_valid_events(values):
         numeric_values = np.asarray(values, dtype=float)
@@ -2398,7 +3382,8 @@ def FED3_post_processing():
     # EXTRACTION
     # ------------------------------------------------------------
     for tab in selected_tabs:
-
+        auc_window = auc_windows[tab]
+        peak_window = peak_windows[tab]
 
         for _, row in metadata_df.iterrows():
 
@@ -2407,7 +3392,7 @@ def FED3_post_processing():
             genotype = row[group_column]
             mouse = str(row[mouse_id_col])
             sex = row[sex_col]
-            
+
             try:
                 df = pd.read_excel(file, sheet_name=tab, header=None)
 
@@ -2428,6 +3413,13 @@ def FED3_post_processing():
             event_notes = df.iloc[event_note_idx, :]
             event_columns = event_notes[event_notes == tab].index
 
+            if len(event_columns) == 0:
+                print(
+                    f"Skipping {tab} for {row['Filename']} "
+                    "(no matching events)"
+                )
+                continue
+
             trial_df = df.iloc[data_start:, event_columns]
             trial_df = trial_df.apply(pd.to_numeric, errors="coerce")
 
@@ -2441,6 +3433,13 @@ def FED3_post_processing():
             time_vector = time_series.loc[valid_rows].values
             trial_matrix = trial_df.loc[valid_rows].values
 
+            if time_vector.size == 0:
+                print(
+                    f"Skipping {tab} for {row['Filename']} "
+                    "(no valid timestamps)"
+                )
+                continue
+
             # ------------------------------------------------------------
             # CALCULATE AUC AND MEAN Z WINDOW
             # ------------------------------------------------------------
@@ -2453,8 +3452,11 @@ def FED3_post_processing():
             if not np.any(auc_mask):
                 messagebox.showerror(
                     "Window Error",
-                    f"No data points found in the AUC / Mean Z window "
-                    f"({auc_window['start']}–{auc_window['end']} s)"
+                    f"{tab} in {row['Filename']} has no data points in the "
+                    f"AUC / Mean Z window ({auc_window['start']}–"
+                    f"{auc_window['end']} s).\n\nAvailable time range: "
+                    f"{np.nanmin(time_vector):.6g} to "
+                    f"{np.nanmax(time_vector):.6g} s."
                 )
                 root.destroy()
                 return
@@ -2482,8 +3484,11 @@ def FED3_post_processing():
             if not np.any(peak_mask):
                 messagebox.showerror(
                     "Window Error",
-                    f"No data points found in the Peak Z-score window "
-                    f"({peak_window['start']}–{peak_window['end']} s)"
+                    f"{tab} in {row['Filename']} has no data points in the "
+                    f"Peak window ({peak_window['start']}–"
+                    f"{peak_window['end']} s).\n\nAvailable time range: "
+                    f"{np.nanmin(time_vector):.6g} to "
+                    f"{np.nanmax(time_vector):.6g} s."
                 )
                 root.destroy()
                 return
@@ -2553,7 +3558,7 @@ def FED3_post_processing():
         if len(combined_raw[tab]) == 0:
             print(f"No data found for {tab}, skipping.")
             continue
-        
+
         if progression_options["per_mouse"]:
             n_mice = len(combined_raw[tab])
 
@@ -2683,6 +3688,21 @@ def FED3_post_processing():
         if progression_options["grouped_summary"]:
             plot_available_groupings(combined_raw[tab], metric_specs, tab)
 
+        if progression_options["pooled_event_bars"]:
+            for metric_key in pooled_metric_order:
+                if metric_key not in progression_options["summary_metrics"]:
+                    continue
+                pooled_spec = pooled_metric_specs[metric_key]
+                plot_pooled_event_groupings(
+                    pooled_spec["storage"][tab],
+                    tab,
+                    metric_key,
+                    pooled_spec
+                )
+
+        if progression_options["grouped_heatmaps"]:
+            plot_available_grouped_heatmaps(combined_raw[tab], tab)
+
         plot_available_group_3d(combined_raw[tab], tab)
 
     # ------------------------------------------------------------
@@ -2715,6 +3735,88 @@ def FED3_post_processing():
         plot_event_summary_bars(event_summary_df)
 
     # ------------------------------------------------------------
+    # BUILD COMPACT POOLED-EVENT TABLE
+    # ------------------------------------------------------------
+    pooled_event_columns = []
+    pooled_event_values = []
+
+    for tab in selected_tabs:
+        for metric_key in pooled_metric_order:
+            if metric_key not in progression_options["summary_metrics"]:
+                continue
+
+            metric_spec = pooled_metric_specs[metric_key]
+            grouped_values = {}
+            for _, genotype, sex, values in metric_spec["storage"][tab]:
+                group_key = (
+                    clean_group_value(genotype),
+                    clean_group_value(sex)
+                )
+                numeric_values = np.asarray(values, dtype=float).reshape(-1)
+                numeric_values = numeric_values[np.isfinite(numeric_values)]
+                grouped_values.setdefault(group_key, []).append(numeric_values)
+
+            for genotype, sex in sorted(
+                grouped_values,
+                key=lambda value: (str(value[1]), str(value[0]))
+            ):
+                value_arrays = grouped_values[(genotype, sex)]
+                pooled_values = (
+                    np.concatenate(value_arrays)
+                    if value_arrays
+                    else np.asarray([], dtype=float)
+                )
+                pooled_event_columns.append((
+                    f"{tab} {metric_spec['label']}",
+                    genotype,
+                    sex
+                ))
+                pooled_event_values.append(pooled_values)
+
+    pooled_event_row_count = max(
+        (len(values) for values in pooled_event_values),
+        default=0
+    )
+    pooled_event_df = pd.DataFrame({
+        column_index: np.pad(
+            values,
+            (0, pooled_event_row_count - len(values)),
+            constant_values=np.nan
+        )
+        for column_index, values in enumerate(pooled_event_values)
+    })
+
+    def write_pooled_event_sheet(writer):
+        if not pooled_event_columns:
+            return
+
+        sheet_name = "Pooled Event Metrics"
+        metric_headers = [
+            metric
+            for metric, _, _ in pooled_event_columns
+        ]
+        pooled_event_df.columns = metric_headers
+
+        metadata_rows = pd.DataFrame(
+            [
+                [genotype for _, genotype, _ in pooled_event_columns],
+                [sex for _, _, sex in pooled_event_columns]
+            ],
+            index=[group_column, sex_col],
+            columns=metric_headers
+        )
+        pooled_event_output = pd.concat([
+            metadata_rows,
+            pooled_event_df
+        ])
+        pooled_event_output.to_excel(
+            writer,
+            sheet_name=sheet_name,
+            index_label="Metric",
+            float_format="%.10f"
+        )
+
+    # ------------------------------------------------------------
     # EXPORT COMBINED EXCEL
     # ------------------------------------------------------------
     output_path = os.path.join(save_folder, "FED3_FP_Combined.xlsx")
@@ -2727,21 +3829,18 @@ def FED3_post_processing():
         root.destroy()
         return
 
+    if progression_options["prism_heatmaps"]:
+        try:
+            export_prism_heatmap_workbook()
+        except Exception as error:
+            messagebox.showerror(
+                "Prism Heatmap Export Error",
+                str(error)
+            )
+
     with pd.ExcelWriter(output_path) as writer:
 
         parameter_rows = [
-            {
-                "Parameter": "AUC / Mean Z-score window",
-                "Start Time (s)": auc_window["start"],
-                "End Time (s)": auc_window["end"],
-                "Value": ""
-            },
-            {
-                "Parameter": "Peak Z-score window",
-                "Start Time (s)": peak_window["start"],
-                "End Time (s)": peak_window["end"],
-                "Value": ""
-            },
             {
                 "Parameter": "Custom plot colours",
                 "Start Time (s)": np.nan,
@@ -2750,10 +3849,33 @@ def FED3_post_processing():
             }
         ]
 
+        for tab in selected_tabs:
+            parameter_rows.extend([
+                {
+                    "Parameter": f"{tab} AUC / Mean Z-score window",
+                    "Start Time (s)": auc_windows[tab]["start"],
+                    "End Time (s)": auc_windows[tab]["end"],
+                    "Value": ""
+                },
+                {
+                    "Parameter": f"{tab} Peak Z-score window",
+                    "Start Time (s)": peak_windows[tab]["start"],
+                    "End Time (s)": peak_windows[tab]["end"],
+                    "Value": ""
+                }
+            ])
+
         progression_parameter_labels = [
             ("Per-mouse mean ± SEM plots", "Yes" if progression_options["per_mouse"] else "No"),
             ("Grouped overlay and metric plots", "Yes" if progression_options["grouped_summary"] else "No"),
             ("Event-summary bar plots", "Yes" if progression_options["summary_bars"] else "No"),
+            ("Pooled-event bar plots", "Yes" if progression_options["pooled_event_bars"] else "No"),
+            ("Grouped peri-event heatmaps", "Yes" if progression_options["grouped_heatmaps"] else "No"),
+            ("Prism heatmap workbook", "Yes" if progression_options["prism_heatmaps"] else "No"),
+            ("Prism combined matrices", "Yes" if progression_options["prism_combined"] else "No"),
+            ("Prism split matrices", "Yes" if progression_options["prism_split"] else "No"),
+            ("Prism downsampling factor", progression_options["prism_downsample_factor"]),
+            ("Prism blank group rows", progression_options["prism_gap_rows"]),
             (
                 "Event Summary metrics",
                 ", ".join(
@@ -2836,6 +3958,11 @@ def FED3_post_processing():
                 index=False,
                 float_format="%.10f"
             )
+
+        # ------------------------------------------------------------
+        # POOLED EVENT METRICS
+        # ------------------------------------------------------------
+        write_pooled_event_sheet(writer)
 
         for tab in selected_tabs:
 
